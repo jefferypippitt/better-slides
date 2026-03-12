@@ -1,0 +1,92 @@
+/* ─── Code block CSS variables ───────────────────────────────────────────────── */
+
+:root {
+  --slide-code-bg: #ffffff;
+  --slide-code-border: #eaeaea;
+  --slide-code-text: #24292e;
+  --sh-keyword: #d73a49;
+  --sh-string: #032f62;
+  --sh-property: #005cc5;
+  --sh-class: #6f42c1;
+  --sh-entity: #6f42c1;
+  --sh-tag: #22863a;
+  --sh-identifier: #24292e;
+  --sh-literal: #005cc5;
+  --sh-comment: #6a737d;
+  --sh-sign: #24292e;
+}
+
+.dark {
+  --slide-code-bg: #0a0a0a;
+  --slide-code-border: #262626;
+  --slide-code-text: #ededed;
+  --sh-keyword: #ff7b72;
+  --sh-string: #a5d6ff;
+  --sh-property: #79c0ff;
+  --sh-class: #d2a8ff;
+  --sh-entity: #d2a8ff;
+  --sh-tag: #7ee787;
+  --sh-identifier: #ededed;
+  --sh-literal: #79c0ff;
+  --sh-comment: #7a7a7a;
+  --sh-sign: #ededed;
+}
+
+/* ─── Highlight.js token colours ────────────────────────────────────────────── */
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag .hljs-name {
+  color: var(--sh-keyword);
+}
+
+.hljs-string,
+.hljs-attr,
+.hljs-template-variable,
+.hljs-addition {
+  color: var(--sh-string);
+}
+
+.hljs-variable,
+.hljs-property,
+.hljs-attribute,
+.hljs-params {
+  color: var(--sh-property);
+}
+
+.hljs-title,
+.hljs-class .hljs-title,
+.hljs-type {
+  color: var(--sh-class);
+}
+
+.hljs-tag {
+  color: var(--sh-tag);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+  color: var(--sh-literal);
+}
+
+.hljs-comment,
+.hljs-quote {
+  font-style: italic;
+  color: var(--sh-comment);
+}
+
+.hljs-punctuation,
+.hljs-operator,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--sh-sign);
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--sh-entity);
+}

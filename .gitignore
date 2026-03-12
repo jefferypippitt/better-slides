@@ -30,10 +30,12 @@ pnpm-debug.log*
 
 # env files
 .env*.local
-
+.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
 # local agent skill lock
 skills-lock.json
+# next-agents-md
+.next-docs/

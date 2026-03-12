@@ -1,19 +1,22 @@
-import { Button } from "@/components/ui/button";
+import { CtaSlide } from "@/components/landing/cta-slide";
+import { FaqSlide } from "@/components/landing/faq-slide";
+import { FeaturesSlide } from "@/components/landing/features-slide";
+import { HeroSlide } from "@/components/landing/hero-slide";
+import { LandingScroll } from "@/components/landing/landing-scroll";
+import { ProblemSlide } from "@/components/landing/problem-slide";
+import { SolutionSlide } from "@/components/landing/solution-slide";
+import { UploadFormatsSlide } from "@/components/landing/upload-formats-slide";
 
-export default function Page() {
+export default function LandingPage() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex min-w-0 max-w-md flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-muted-foreground text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+    <LandingScroll>
+      <HeroSlide />
+      <ProblemSlide />
+      <SolutionSlide />
+      <FeaturesSlide />
+      <UploadFormatsSlide />
+      <FaqSlide />
+      <CtaSlide />
+    </LandingScroll>
   );
 }
