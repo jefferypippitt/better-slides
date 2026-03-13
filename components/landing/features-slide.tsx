@@ -88,6 +88,8 @@ export function FeaturesSlide() {
           ))}
         </div>
       </div>
+
+      <SlideBar left="" position="bottom" right="" />
     </section>
   );
 }

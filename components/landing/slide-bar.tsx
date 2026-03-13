@@ -15,7 +15,7 @@ export function SlideBar({
 }: SlideBarProps) {
   return (
     <div
-      className={`flex shrink-0 items-center border-border px-8 py-3.5 ${
+      className={`flex h-12 shrink-0 items-center border-border px-8 ${
         center ? "justify-center" : "justify-between"
       } ${position === "top" ? "border-b" : "border-t"}`}
     >

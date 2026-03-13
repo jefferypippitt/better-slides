@@ -2,7 +2,6 @@
 
 import {
   ArrowSquareOut,
-  CheckSquare,
   Copy,
   Plus,
   Trash,
@@ -19,6 +18,7 @@ import type { CanvasBox } from "@/components/editor/layout-canvas";
 import { LayoutCanvas } from "@/components/editor/layout-canvas";
 import { SlideOrganizer } from "@/components/editor/slide-organizer";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -731,18 +731,19 @@ export default function WritePage() {
                     <span>{i + 1}</span>
                   </button>
                   <button
-                    className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded border py-1 text-[10px] transition-colors ${
-                      slide.speakerNotes?.trim()
-                        ? "border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400"
-                        : "border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400"
-                    }`}
+                    className="mt-1.5 flex w-full justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => openNotesDialog(i)}
                     type="button"
                   >
-                    {slide.speakerNotes?.trim() && (
-                      <CheckSquare size={11} weight="fill" />
-                    )}
-                    {slide.speakerNotes?.trim() ? "Notes" : "Add notes"}
+                    <Badge
+                      className={`w-full justify-center py-1 text-[10px] ${
+                        slide.speakerNotes?.trim()
+                          ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                      }`}
+                    >
+                      {slide.speakerNotes?.trim() ? "Notes on" : "No notes"}
+                    </Badge>
                   </button>
                 </div>
               ))}

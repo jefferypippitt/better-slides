@@ -127,6 +127,8 @@ export function WorkflowSlide() {
           </div>
         </div>
       </div>
+
+      <SlideBar left="" position="bottom" right="" />
     </section>
   );
 }

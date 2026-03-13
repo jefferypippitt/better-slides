@@ -3,6 +3,7 @@
 import {
   CaretLeft,
   CaretRight,
+  CaretUp,
   Code,
   DotsSixVertical,
   X,
@@ -611,11 +612,15 @@ export function SolutionSlide() {
 
       <SlideBar
         center
-        left="BETTER-SLIDES"
+        left=""
         position="bottom"
         right={
-          <span className="animation-duration-[1.6s] inline-block motion-safe:animate-bounce">
-            TRY IT ↑
+          <span className="inline-flex items-center gap-1.5">
+            TRY IT
+            <CaretUp
+              className="animation-duration-[1.6s] motion-safe:animate-bounce"
+              size={12}
+            />
           </span>
         }
       />

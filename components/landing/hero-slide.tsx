@@ -2,6 +2,7 @@
 
 import {
   ArrowRightIcon,
+  CaretDown,
   DeviceMobileCamera,
   WifiHigh,
 } from "@phosphor-icons/react";
@@ -11,31 +12,35 @@ import { Button } from "@/components/ui/button";
 import { SlideBar } from "./slide-bar";
 
 const QR_DOTS = [
-  "111111100001111111",
-  "100000100001000001",
-  "101110100001011101",
-  "101110100001011101",
-  "101110100001011101",
-  "100000100001000001",
-  "111111100001111111",
-  "000000000000000000",
-  "101010111100101010",
-  "010101000011010101",
-  "111001011010110011",
-  "001101100101001110",
-  "110010001110110001",
-  "000000000000000000",
-  "111111100101100111",
-  "100000100111001001",
-  "101110101001111010",
-  "100000101010001101",
+  "111111100110101111111",
+  "100000100101010100000",
+  "101110100110110101110",
+  "101110100001001101110",
+  "101110100111010101110",
+  "100000100010101100000",
+  "111111101010101111111",
+  "000000000101010000000",
+  "100011101010110111001",
+  "001100010101001000101",
+  "110011101011100111010",
+  "001010010100011010101",
+  "101101101011101101001",
+  "000000001101010010110",
+  "111111101010111011000",
+  "100000100101000100101",
+  "101110101011101011010",
+  "101110100100010100101",
+  "101110101011100011010",
+  "100000100100011100101",
+  "111111101011101011010",
 ];
 const HERO_DOT_IDS = ["dot-1", "dot-2", "dot-3", "dot-4", "dot-5", "dot-6"];
+const QR_SIZE = QR_DOTS[0]?.length ?? 0;
 const QR_CELLS = QR_DOTS.join("")
   .split("")
   .map((dot, cellIndex) => ({
     dot,
-    id: `qr-${Math.floor(cellIndex / 18)}-${cellIndex % 18}`,
+    id: `qr-${Math.floor(cellIndex / QR_SIZE)}-${cellIndex % QR_SIZE}`,
   }));
 
 export function HeroSlide() {
@@ -104,7 +109,7 @@ export function HeroSlide() {
                       <span
                         className={`rounded-full transition-all ${
                           index === 3
-                            ? "h-1.5 w-4 animate-pulse bg-foreground"
+                            ? "h-1.5 w-4 bg-foreground"
                             : "h-1.5 w-1.5 bg-border"
                         }`}
                         key={dotId}
@@ -118,7 +123,12 @@ export function HeroSlide() {
                 <div className="pointer-events-none absolute top-1/2 -left-3 w-3 border-border border-t border-dotted" />
                 <div className="pointer-events-none absolute top-1/2 -right-3 w-3 border-border border-t border-dotted" />
                 <div className="aspect-square w-full max-w-[170px] border border-border bg-card p-2">
-                  <div className="grid h-full w-full grid-cols-18 gap-px bg-muted p-[2px]">
+                  <div
+                    className="grid h-full w-full gap-px bg-muted p-[2px]"
+                    style={{
+                      gridTemplateColumns: `repeat(${QR_SIZE}, minmax(0, 1fr))`,
+                    }}
+                  >
                     {QR_CELLS.map((cell) => (
                       <span
                         className={
@@ -200,10 +210,15 @@ export function HeroSlide() {
       </div>
 
       <SlideBar
-        left="better-slides.com"
+        left=""
+        position="bottom"
         right={
-          <span className="animation-duration-[1.6s] inline-block motion-safe:animate-bounce">
-            SCROLL TO EXPLORE ↓
+          <span className="inline-flex items-center gap-1.5">
+            SCROLL TO EXPLORE
+            <CaretDown
+              className="animation-duration-[1.6s] motion-safe:animate-bounce"
+              size={12}
+            />
           </span>
         }
       />

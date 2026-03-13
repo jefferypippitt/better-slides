@@ -12,6 +12,12 @@ import {
   resolveMdxComponents,
   type UploadedDeckWidget,
 } from "@/components/mdx/component-registry";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import type { CanvasBox as DeckCanvasBox } from "@/lib/decks";
 import { parseMarkdownSections } from "@/lib/sections";
 
@@ -46,7 +52,6 @@ const MIN_BOX_WIDTH = 15;
 const MIN_BOX_HEIGHT = 10;
 const PUBLIC_NOTES_BASE_URL = process.env.NEXT_PUBLIC_NOTES_BASE_URL?.trim();
 const TRAILING_SLASH_RE = /\/+$/;
-const LIST_LIKE_RE = /^([-*+]\s)|(\d+\.\s)/;
 const HEADING_PREFIX_RE = /^#{1,6}\s+/;
 const BULLET_LINE_RE = /^[-*+]\s+(.+)$/;
 const NUMBERED_LINE_RE = /^\d+\.\s+(.+)$/;
@@ -350,24 +355,6 @@ export function LayoutCanvas({
     }
   }
 
-  function detectTextStyle(sectionContent: string): CanvasTextStyle {
-    const lines = sectionContent
-      .split("\n")
-      .slice(1)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    if (lines.length === 0) {
-      return "title";
-    }
-    const firstLine = lines[0] ?? "";
-    const isListLike = LIST_LIKE_RE.test(firstLine);
-    if (isListLike) {
-      return "body";
-    }
-    const textLength = lines.join(" ").length;
-    return textLength <= 90 ? "subtitle" : "body";
-  }
-
   function nextTextStyle(current: CanvasTextStyle): CanvasTextStyle {
     const currentIndex = CANVAS_TEXT_STYLE_ORDER.indexOf(current);
     const nextIndex = (currentIndex + 1) % CANVAS_TEXT_STYLE_ORDER.length;
@@ -425,7 +412,6 @@ export function LayoutCanvas({
     w: number,
     h: number
   ): DeckCanvasBox {
-    const section = sections.find((candidate) => candidate.id === sectionId);
     return {
       id: `box-${Date.now()}`,
       kind: "section",
@@ -434,7 +420,7 @@ export function LayoutCanvas({
       y,
       w,
       h,
-      textStyle: section ? detectTextStyle(section.content) : "body",
+      textStyle: "body",
     };
   }
 
@@ -1010,10 +996,15 @@ export function LayoutCanvas({
 
               {/* empty state */}
               {boxes.length === 0 && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <p className="text-center text-muted-foreground text-sm">
-                    Drag a section here or click <strong>Add</strong>
-                  </p>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+                  <Empty className="w-full max-w-md border border-dashed bg-background/80 backdrop-blur-[1px]">
+                    <EmptyHeader>
+                      <EmptyTitle>Canvas is empty</EmptyTitle>
+                      <EmptyDescription>
+                        Drag a section here or click Add
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
                 </div>
               )}
 
@@ -1288,7 +1279,7 @@ export function LayoutCanvas({
                     {(["nw", "ne", "sw", "se"] as ResizeEdge[]).map((edge) => (
                       <button
                         aria-label={`Resize ${edge}`}
-                        className={`absolute z-10 h-3 w-3 rounded-sm border-2 border-primary bg-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-neutral-700 ${getCornerResizeClass(
+                        className={`absolute z-10 h-2.5 w-2.5 rounded-sm border-2 border-blue-500 bg-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-neutral-700 ${getCornerResizeClass(
                           edge
                         )}`}
                         data-nodrag

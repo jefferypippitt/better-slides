@@ -25,63 +25,80 @@ export function LandingScroll({ children }: { children: React.ReactNode }) {
 
     const context = gsap.context(() => {
       const sections = gsap.utils.toArray<HTMLElement>(".landing-section");
-      gsap.set(sections, { clearProps: "opacity,transform" });
+      if (sections.length <= 1) {
+        return;
+      }
+
       gsap.set(sections.slice(1), {
-        rotateX: 8,
         opacity: 0,
-        scale: 0.97,
+        y: 40,
+        scale: 0.98,
         pointerEvents: "none",
         transformOrigin: "center center",
       });
 
-      // Sections 2+ — scrubbed tilt settle as they enter viewport.
-      // Delay the final CTA section so it doesn't overlap FAQ too early.
-      for (const [index, section] of sections.slice(1).entries()) {
-        const isLastSection = index === sections.length - 2;
-        const interactiveProgressThreshold = isLastSection ? 0.78 : 0.6;
+      for (const section of sections.slice(1)) {
         const children = Array.from(section.children) as HTMLElement[];
-        let isSectionInteractive = false;
-        const setSectionInteractivity = (isInteractive: boolean) => {
-          if (isSectionInteractive === isInteractive) {
-            return;
-          }
-          isSectionInteractive = isInteractive;
-          gsap.set(section, { pointerEvents: isInteractive ? "auto" : "none" });
-        };
 
-        gsap.set(children, { y: 18 });
+        gsap.set(children, { y: 16, opacity: 0 });
 
-        gsap.to(section, {
-          rotateX: 0,
-          opacity: 1,
-          scale: 1,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: section,
-            start: isLastSection ? "top 35%" : "top 88%",
-            end: "top 6%",
-            scrub: 1.5,
-            onUpdate: (self) => {
-              setSectionInteractivity(
-                self.progress >= interactiveProgressThreshold
-              );
-            },
-            onEnter: () => {
-              gsap.to(children, {
-                y: 0,
-                duration: 0.65,
-                stagger: 0.12,
-                ease: "power3.out",
-                overwrite: "auto",
-              });
-            },
-            onLeaveBack: () => {
-              setSectionInteractivity(false);
-              gsap.set(children, { y: 18 });
-            },
+        ScrollTrigger.create({
+          trigger: section,
+          start: "top 88%",
+          onEnter: () => {
+            gsap.to(section, {
+              duration: 0.65,
+              ease: "power2.out",
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              overwrite: "auto",
+            });
+
+            gsap.to(children, {
+              y: 0,
+              opacity: 1,
+              duration: 0.55,
+              stagger: 0.1,
+              ease: "power3.out",
+              overwrite: "auto",
+            });
+
+            gsap.set(section, { pointerEvents: "auto" });
+          },
+          onEnterBack: () => {
+            gsap.to(section, {
+              duration: 0.55,
+              ease: "power2.out",
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              overwrite: "auto",
+            });
+
+            gsap.to(children, {
+              y: 0,
+              opacity: 1,
+              duration: 0.45,
+              stagger: 0.08,
+              ease: "power3.out",
+              overwrite: "auto",
+            });
+
+            gsap.set(section, { pointerEvents: "auto" });
+          },
+          onLeaveBack: () => {
+            gsap.set(section, {
+              opacity: 0,
+              y: 40,
+              scale: 0.98,
+              pointerEvents: "none",
+            });
+            gsap.set(children, { y: 16, opacity: 0 });
           },
         });
       }
+      ScrollTrigger.refresh();
     }, containerRef);
 
     return () => {

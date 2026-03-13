@@ -7,17 +7,14 @@ import { SlideBar } from "./slide-bar";
 
 export function CtaSlide() {
   return (
-    <section className="landing-section sticky top-0 z-8 flex h-svh flex-col overflow-hidden bg-background">
+    <section className="landing-section sticky top-0 z-7 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="07 / 07" right="GET STARTED" />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-7 p-8 text-center">
-        <h2 className="font-bold text-[clamp(2.25rem,6.5vw,5.25rem)] leading-[0.95] tracking-tight">
-          Ready to
-          <br />
-          <span className="opacity-35">present?</span>
+        <h2 className="font-semibold text-[clamp(2.25rem,6.5vw,5.25rem)] leading-[0.95] tracking-tight">
+          Ready To Present <span className="opacity-35">?</span>
         </h2>
-
-        <p className="max-w-md text-base text-muted-foreground leading-relaxed md:text-lg">
+        <p className="max-w-xl text-base text-muted-foreground leading-relaxed md:text-lg">
           Create your first presentation in minutes. Free to start, no credit
           card required.
         </p>
@@ -36,11 +33,7 @@ export function CtaSlide() {
         </div>
       </div>
 
-      <SlideBar
-        left="better-slides.com"
-        position="bottom"
-        right="BUILD FAST · PRESENT CLEARLY"
-      />
+      <SlideBar left="" position="bottom" right="" />
     </section>
   );
 }
