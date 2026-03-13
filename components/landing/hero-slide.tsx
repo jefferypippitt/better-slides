@@ -52,9 +52,8 @@ export function HeroSlide() {
           </h1>
 
           <p className="mt-5 max-w-md font-light text-muted-foreground text-sm leading-relaxed">
-            Create beautiful presentations from Markdown or your existing files.
-            Build faster with live editing, mobile notes, and effortless
-            presenting.
+            Create beautiful presentations from Markdown, then upload optional
+            `.tsx` React widgets for interactive slides.
           </p>
 
           <div className="mt-8 flex gap-3">

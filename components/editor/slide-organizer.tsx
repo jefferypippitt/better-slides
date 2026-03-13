@@ -94,6 +94,17 @@ export function SlideOrganizer({
     null
   );
   const widgetNameSet = useMemo(() => new Set(widgetNames), [widgetNames]);
+  const missingComponentNames = useMemo(() => {
+    const missing = new Set<string>();
+    for (const section of sections) {
+      const jsxMatch = section.content.match(JSX_COMPONENT_RE);
+      const name = jsxMatch?.[1];
+      if (name && !widgetNameSet.has(name)) {
+        missing.add(name);
+      }
+    }
+    return [...missing];
+  }, [sections, widgetNameSet]);
   const attachedWidgetSet = useMemo(() => {
     const attachedNames = Object.values(sectionWidgetMap).filter(
       (widgetName): widgetName is string => widgetName !== undefined
@@ -153,6 +164,7 @@ export function SlideOrganizer({
         onAttachFromLibrary={handleAttachFromLibrary}
         state={{
           attachedWidgetSet,
+          missingComponentNames,
           sectionWidgetMap,
           selectedSectionId,
           widgetNames,

@@ -48,8 +48,8 @@ const EDITOR_LINES: EditorLine[] = [
   { id: "sub", text: "Welcome to the future of slides.", kind: "text" },
   { id: "div1", text: "---", kind: "divider" },
   { id: "h2a", text: "## Key Features", kind: "h2" },
-  { id: "feat1", text: "- Any format", kind: "text" },
-  { id: "feat2", text: "- AI-powered import", kind: "text" },
+  { id: "feat1", text: "- Markdown first", kind: "text" },
+  { id: "feat2", text: "- Instant slide structure", kind: "text" },
   { id: "div2", text: "---", kind: "divider" },
   { id: "h2b", text: "## Get Started", kind: "h2" },
   { id: "cta", text: "Sign up free today →", kind: "text" },
@@ -66,7 +66,7 @@ const SECTIONS: Section[] = [
   {
     id: "s2",
     title: "Key Features",
-    body: "## Key Features\n- Any format\n- AI-powered import",
+    body: "## Key Features\n- Markdown first\n- Instant slide structure",
   },
   {
     id: "s3",
@@ -81,7 +81,7 @@ const NOTES_BY_SECTION: Record<string, string[]> = {
     'Closing / Hand-off: "After the title, move to `## Key Features` to explain what is included."',
   ],
   s2: [
-    'Opening / Transition: "On `## Key Features`, call out `- Any format` and `- AI-powered import`."',
+    'Opening / Transition: "On `## Key Features`, call out `- Markdown first` and `- Instant slide structure`."',
     'Closing / Hand-off: "Once features are clear, transition to `## Get Started` for the next action."',
   ],
   s3: [
@@ -412,7 +412,7 @@ export function SolutionSlide() {
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 p-8">
         <h2 className="text-center font-bold text-[clamp(1.6rem,3.5vw,3rem)] leading-tight tracking-tight">
-          Any format. <span className="opacity-35">Present beautifully.</span>
+          Markdown in. <span className="opacity-35">Slides out.</span>
         </h2>
 
         <div className="grid w-full grid-cols-3 gap-3">

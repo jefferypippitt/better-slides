@@ -1,5 +1,6 @@
 interface WidgetLibraryPanelState {
   attachedWidgetSet: Set<string>;
+  missingComponentNames: string[];
   sectionWidgetMap: Record<string, string | undefined>;
   selectedSectionId: string | null;
   widgetNames: string[];
@@ -32,6 +33,7 @@ export function WidgetLibraryPanel({
 }: WidgetLibraryPanelProps) {
   const {
     attachedWidgetSet,
+    missingComponentNames,
     sectionWidgetMap,
     selectedSectionId,
     widgetNames,
@@ -55,7 +57,24 @@ export function WidgetLibraryPanel({
       </div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-        {widgetNames.length === 0 ? (
+        {missingComponentNames.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {missingComponentNames.map((name) => (
+              <div
+                className="w-full rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-2"
+                key={name}
+              >
+                <p className="truncate font-medium text-xs text-yellow-700 dark:text-yellow-400">
+                  {name}
+                </p>
+                <p className="mt-0.5 text-[10px] text-yellow-600/80 dark:text-yellow-500/80">
+                  upload {name}.tsx
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        {widgetNames.length === 0 && missingComponentNames.length === 0 ? (
           <p className="mt-4 text-center text-[11px] text-muted-foreground/60 italic">
             No components yet.
             <br />

@@ -13,8 +13,8 @@ const PAIN_POINTS = [
   },
   {
     num: "03",
-    title: "Turning documents into decks is manual",
-    desc: "Teams keep rewriting PDFs, docs, and notes slide by slide instead of importing and iterating.",
+    title: "Turning markdown ideas into decks is manual",
+    desc: "Teams keep copy-pasting notes into slide builders instead of working from one markdown source of truth.",
   },
   {
     num: "04",

@@ -6,9 +6,13 @@ import { deck as deckTable, deckWidget as deckWidgetTable } from "./db/schema";
 
 export interface CanvasBox {
 	id: string;
-	kind?: "section" | "separator" | "component";
+	kind?: "section" | "separator" | "component" | "image" | "shape" | "text" | "page-number" | "timer" | "qr-code";
 	sectionId?: string;
 	componentName?: string;
+	imageUrl?: string;
+	shapeColor?: string;
+	shapeType?: "rect" | "circle";
+	staticText?: string;
 	x: number;
 	y: number;
 	w: number;
@@ -37,10 +41,23 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
 	const kind =
 		candidate.kind === "section" ||
 		candidate.kind === "separator" ||
-		candidate.kind === "component"
+		candidate.kind === "component" ||
+		candidate.kind === "image" ||
+		candidate.kind === "shape" ||
+		candidate.kind === "text" ||
+		candidate.kind === "page-number" ||
+		candidate.kind === "timer" ||
+		candidate.kind === "qr-code"
 			? candidate.kind
 			: undefined;
-	const isSectionLike = kind !== "separator" && kind !== "component";
+	const isDecorative =
+		kind === "image" ||
+		kind === "shape" ||
+		kind === "text" ||
+		kind === "page-number" ||
+		kind === "timer" ||
+		kind === "qr-code";
+	const isSectionLike = !isDecorative && kind !== "separator" && kind !== "component";
 	const isComponentLike = kind === "component";
 	if (
 		typeof candidate.id !== "string" ||
@@ -62,11 +79,14 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
 		return null;
 	}
 	return {
-		...candidate,
 		id: candidate.id,
 		kind: candidate.kind ?? "section",
 		sectionId: candidate.sectionId,
 		componentName: candidate.componentName,
+		imageUrl: typeof candidate.imageUrl === "string" ? candidate.imageUrl : undefined,
+		shapeColor: typeof candidate.shapeColor === "string" ? candidate.shapeColor : undefined,
+		shapeType: candidate.shapeType === "circle" ? "circle" : candidate.shapeType === "rect" ? "rect" : undefined,
+		staticText: typeof candidate.staticText === "string" ? candidate.staticText : undefined,
 		x: Math.max(0, Math.min(100, candidate.x)),
 		y: Math.max(0, Math.min(100, candidate.y)),
 		w: Math.max(10, Math.min(100, candidate.w)),

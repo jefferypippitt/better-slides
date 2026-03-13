@@ -27,10 +27,43 @@ export function SlideDeck({
   const router = useRouter();
   const pathname = usePathname();
 
+  const extractDeckId = useCallback(() => {
+    if (!syncEndpoint) {
+      return null;
+    }
+    try {
+      const url = new URL(syncEndpoint, window.location.origin);
+      return url.searchParams.get("deckId");
+    } catch {
+      return null;
+    }
+  }, [syncEndpoint]);
+
+  const getChannelName = useCallback(() => {
+    const deckId = extractDeckId();
+    if (!deckId) {
+      return null;
+    }
+    return `better-slides-notes-${deckId}`;
+  }, [extractDeckId]);
+
   const getCurrentPage = useCallback(() => {
     const match = pathname.match(SLIDE_INDEX_RE);
     return match ? Number(match[1]) : 1;
   }, [pathname]);
+
+  const broadcastState = useCallback(
+    (page: number) => {
+      const channelName = getChannelName();
+      if (!channelName) {
+        return;
+      }
+      const channel = new BroadcastChannel(channelName);
+      channel.postMessage({ kind: "state", slide: page, total: slides.length });
+      channel.close();
+    },
+    [getChannelName, slides.length]
+  );
 
   // Publish initial state so the phone knows the total slide count immediately.
   useEffect(() => {
@@ -38,6 +71,7 @@ export function SlideDeck({
       return;
     }
     const page = getCurrentPage();
+    broadcastState(page);
     fetch(syncEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,11 +81,72 @@ export function SlideDeck({
     });
     // Only run once on mount — omit getCurrentPage/slides.length intentionally.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncEndpoint, getCurrentPage, slides.length]);
+  }, [broadcastState, syncEndpoint, getCurrentPage, slides.length]);
+
+  useEffect(() => {
+    const page = getCurrentPage();
+    broadcastState(page);
+  }, [broadcastState, getCurrentPage]);
+
+  // Heartbeat: keep notes window showing "Live" when slides are idle.
+  useEffect(() => {
+    if (!syncEndpoint) {
+      return;
+    }
+    const id = setInterval(() => {
+      broadcastState(getCurrentPage());
+    }, 2000);
+    return () => clearInterval(id);
+  }, [broadcastState, getCurrentPage, syncEndpoint]);
+
+  useEffect(() => {
+    const channelName = getChannelName();
+    if (!channelName) {
+      return;
+    }
+    const channel = new BroadcastChannel(channelName);
+    const onMessage = (event: MessageEvent<unknown>) => {
+      const message = event.data as
+        | { kind?: "control"; slide?: number; total?: number }
+        | { kind?: "request-state" }
+        | undefined;
+
+      if (!message) {
+        return;
+      }
+
+      if (message.kind === "request-state") {
+        const page = getCurrentPage();
+        channel.postMessage({
+          kind: "state",
+          slide: page,
+          total: slides.length,
+        });
+        return;
+      }
+
+      if (message.kind !== "control" || typeof message.slide !== "number") {
+        return;
+      }
+
+      const currentPage = getCurrentPage();
+      const targetPage = Math.max(1, Math.min(message.slide, slides.length));
+      if (targetPage !== currentPage) {
+        router.push(`${basePath}/${targetPage}`);
+      }
+    };
+
+    channel.addEventListener("message", onMessage);
+    return () => {
+      channel.removeEventListener("message", onMessage);
+      channel.close();
+    };
+  }, [basePath, getChannelName, getCurrentPage, router, slides.length]);
 
   const navigate = useCallback(
     (page: number) => {
       router.push(`${basePath}/${page}`);
+      broadcastState(page);
       if (syncEndpoint) {
         fetch(syncEndpoint, {
           method: "POST",
@@ -62,7 +157,7 @@ export function SlideDeck({
         });
       }
     },
-    [basePath, router, slides.length, syncEndpoint]
+    [basePath, broadcastState, router, slides.length, syncEndpoint]
   );
 
   useEffect(() => {

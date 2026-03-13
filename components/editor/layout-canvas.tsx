@@ -46,15 +46,10 @@ const MIN_BOX_WIDTH = 15;
 const MIN_BOX_HEIGHT = 10;
 const PUBLIC_NOTES_BASE_URL = process.env.NEXT_PUBLIC_NOTES_BASE_URL?.trim();
 const TRAILING_SLASH_RE = /\/+$/;
-const NOTES_SUFFIX_RE = /\/notes\/[^/]+$/;
 const LIST_LIKE_RE = /^([-*+]\s)|(\d+\.\s)/;
 const HEADING_PREFIX_RE = /^#{1,6}\s+/;
 const BULLET_LINE_RE = /^[-*+]\s+(.+)$/;
 const NUMBERED_LINE_RE = /^\d+\.\s+(.+)$/;
-
-interface BaseUrlResponse {
-  baseUrl: string;
-}
 
 function stripSectionHeading(content: string): string {
   const lines = content.split("\n");
@@ -111,6 +106,7 @@ export function LayoutCanvas({
     Record<string, MDXRemoteSerializeResult>
   >({});
   const [dragOverCanvas, setDragOverCanvas] = useState(false);
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const [copiedNotesLink, setCopiedNotesLink] = useState(false);
   const [_historyVersion, setHistoryVersion] = useState(0);
   const [gridViewMode, setGridViewMode] = useState<GridViewMode>("lines");
@@ -121,21 +117,11 @@ export function LayoutCanvas({
     xCentered: false,
     yCentered: false,
   });
-  const [resolvedBaseUrl, setResolvedBaseUrl] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const boxesRef = useRef<DeckCanvasBox[]>(initialLayout ?? []);
   const historyRef = useRef<DeckCanvasBox[][]>([]);
   const historyIndexRef = useRef(0);
   const snapEnabled = gridViewMode !== "off";
-
-  useEffect(() => {
-    fetch("/api/base-url")
-      .then((r) => r.json() as Promise<BaseUrlResponse>)
-      .then((data) => setResolvedBaseUrl(data.baseUrl))
-      .catch(() => {
-        // fallback to env/window origin
-      });
-  }, []);
 
   const notesUrl = useMemo(() => {
     if (!notesPath) {
@@ -143,24 +129,19 @@ export function LayoutCanvas({
     }
     const fallbackOrigin =
       typeof window === "undefined" ? "" : window.location.origin;
-    const baseUrl = PUBLIC_NOTES_BASE_URL || resolvedBaseUrl || fallbackOrigin;
+    const baseUrl = PUBLIC_NOTES_BASE_URL || fallbackOrigin;
     if (!baseUrl) {
       return notesPath;
     }
     return `${baseUrl.replace(TRAILING_SLASH_RE, "")}${notesPath}`;
-  }, [notesPath, resolvedBaseUrl]);
+  }, [notesPath]);
 
   const qrImageUrl = useMemo(() => {
     if (!qrPath) {
       return null;
     }
-    if (!notesUrl) {
-      return qrPath;
-    }
-    return `${qrPath}?baseUrl=${encodeURIComponent(
-      notesUrl.replace(NOTES_SUFFIX_RE, "")
-    )}`;
-  }, [notesUrl, qrPath]);
+    return qrPath;
+  }, [qrPath]);
 
   function cloneLayout(layout: DeckCanvasBox[]): DeckCanvasBox[] {
     return layout.map((box) => ({ ...box }));
@@ -271,12 +252,38 @@ export function LayoutCanvas({
     };
   }, [sections]);
 
+  useEffect(() => {
+    if (!selectedBoxId) {
+      return;
+    }
+    const stillExists = boxes.some((box) => box.id === selectedBoxId);
+    if (!stillExists) {
+      setSelectedBoxId(null);
+    }
+  }, [boxes, selectedBoxId]);
+
   function commit(next: DeckCanvasBox[], options?: { trackHistory?: boolean }) {
     applyNextLayout(next, options);
   }
 
   function canUndo(): boolean {
     return historyIndexRef.current > 0;
+  }
+
+  function canBringForward(): boolean {
+    if (!selectedBoxId) {
+      return false;
+    }
+    const index = boxesRef.current.findIndex((box) => box.id === selectedBoxId);
+    return index >= 0 && index < boxesRef.current.length - 1;
+  }
+
+  function canSendBackward(): boolean {
+    if (!selectedBoxId) {
+      return false;
+    }
+    const index = boxesRef.current.findIndex((box) => box.id === selectedBoxId);
+    return index > 0;
   }
 
   function undo() {
@@ -291,8 +298,43 @@ export function LayoutCanvas({
     setHistoryVersion((v) => v + 1);
   }
 
+  function bringForward() {
+    if (!selectedBoxId) {
+      return;
+    }
+    const current = cloneLayout(boxesRef.current);
+    const index = current.findIndex((box) => box.id === selectedBoxId);
+    if (index < 0 || index >= current.length - 1) {
+      return;
+    }
+    const next = [...current];
+    const selected = next[index];
+    const after = next[index + 1];
+    next[index] = after;
+    next[index + 1] = selected;
+    applyNextLayout(next);
+  }
+
+  function sendBackward() {
+    if (!selectedBoxId) {
+      return;
+    }
+    const current = cloneLayout(boxesRef.current);
+    const index = current.findIndex((box) => box.id === selectedBoxId);
+    if (index <= 0) {
+      return;
+    }
+    const next = [...current];
+    const selected = next[index];
+    const before = next[index - 1];
+    next[index] = before;
+    next[index - 1] = selected;
+    applyNextLayout(next);
+  }
+
   function resetLayout() {
     commit([]);
+    setSelectedBoxId(null);
   }
 
   async function handleCopyNotesLink() {
@@ -415,6 +457,7 @@ export function LayoutCanvas({
   function removeBox(id: string) {
     const next = boxesRef.current.filter((box) => box.id !== id);
     applyNextLayout(next);
+    setSelectedBoxId((current) => (current === id ? null : current));
   }
 
   function cycleBoxTextStyle(boxId: string) {
@@ -460,6 +503,7 @@ export function LayoutCanvas({
       return;
     }
     e.preventDefault();
+    setSelectedBoxId(boxId);
 
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -801,6 +845,23 @@ export function LayoutCanvas({
           >
             Reset
           </button>
+          <div className="mx-1 h-3.5 w-px bg-border" />
+          <button
+            className="rounded px-1.5 py-0.5 hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canBringForward()}
+            onClick={bringForward}
+            type="button"
+          >
+            Bring forward
+          </button>
+          <button
+            className="rounded px-1.5 py-0.5 hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canSendBackward()}
+            onClick={sendBackward}
+            type="button"
+          >
+            Send backward
+          </button>
           <span className="ml-auto opacity-50">
             {boxes.length} node{boxes.length !== 1 ? "s" : ""}
           </span>
@@ -809,75 +870,76 @@ export function LayoutCanvas({
         {/* Letterbox: maintains 16:9 ratio matching the presentation viewport */}
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-muted/30 p-4">
           <div className="relative aspect-video max-h-full w-full shadow-xl ring-1 ring-border/50">
+            <div className="absolute -top-10 right-0 z-30 flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-2">
+                {notesPath && (
+                  <a
+                    className="flex h-6 items-center gap-1.5 rounded-sm border border-border/70 bg-background px-2 text-[10px] text-muted-foreground shadow-sm transition-colors hover:bg-muted/70 hover:text-foreground"
+                    href={notesPath}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <ArrowSquareOut size={12} />
+                    Open notes
+                  </a>
+                )}
+                <details className="relative">
+                  <summary className="flex h-6 cursor-pointer list-none items-center gap-1.5 rounded-sm border border-border/70 bg-background px-2 text-[10px] text-muted-foreground shadow-sm transition-colors hover:bg-muted/70 hover:text-foreground">
+                    <QrCode size={12} />
+                    Notes QR
+                  </summary>
+                  <div className="absolute top-7 right-0 w-72 rounded-md border bg-popover p-2.5 text-popover-foreground shadow-md">
+                    {qrImageUrl && notesPath && notesUrl ? (
+                      <>
+                        <p className="mb-2 font-medium text-[10px] text-muted-foreground">
+                          Presenter notes (owner only)
+                        </p>
+                        <div className="mb-2 flex justify-center rounded border bg-white p-2">
+                          <Image
+                            alt="QR code for presenter notes"
+                            height={176}
+                            src={qrImageUrl}
+                            unoptimized
+                            width={176}
+                          />
+                        </div>
+                        <code className="block break-all rounded bg-muted px-2 py-1 text-[10px]">
+                          {notesUrl}
+                        </code>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <a
+                            className="inline-flex h-7 items-center rounded bg-primary px-2 font-medium text-[10px] text-primary-foreground"
+                            href={notesPath}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            Open notes
+                          </a>
+                          <button
+                            className="inline-flex h-7 items-center gap-1 rounded border px-2 text-[10px]"
+                            onClick={handleCopyNotesLink}
+                            type="button"
+                          >
+                            <Copy size={10} />
+                            {copiedNotesLink ? "Copied" : "Copy link"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">
+                        Save this deck first to generate a notes QR code.
+                      </p>
+                    )}
+                  </div>
+                </details>
+              </div>
+            </div>
+
             {/* Top chrome mock (h-11 = 44px matches presentation top-11) */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-end border-border/30 border-b bg-background/90 px-3">
-              <div className="pointer-events-auto flex flex-col items-end gap-0.5">
-                <div className="flex items-center gap-1.5">
-                  {notesPath && (
-                    <a
-                      className="flex h-5 items-center gap-1 rounded-sm border border-border/60 bg-background px-1.5 text-[9px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-                      href={notesPath}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      <ArrowSquareOut size={10} />
-                      Open notes
-                    </a>
-                  )}
-                  <details className="relative">
-                    <summary className="flex h-5 cursor-pointer list-none items-center gap-1 rounded-sm border border-border/60 bg-background px-1.5 text-[9px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground">
-                      <QrCode size={10} />
-                      Notes QR
-                    </summary>
-                    <div className="absolute top-6 right-0 w-72 rounded-md border bg-popover p-2.5 text-popover-foreground shadow-md">
-                      {qrImageUrl && notesPath && notesUrl ? (
-                        <>
-                          <p className="mb-2 font-medium text-[10px] text-muted-foreground">
-                            Presenter notes (owner only)
-                          </p>
-                          <div className="mb-2 flex justify-center rounded border bg-white p-2">
-                            <Image
-                              alt="QR code for presenter notes"
-                              height={176}
-                              src={qrImageUrl}
-                              unoptimized
-                              width={176}
-                            />
-                          </div>
-                          <code className="block break-all rounded bg-muted px-2 py-1 text-[10px]">
-                            {notesUrl}
-                          </code>
-                          <div className="mt-2 flex items-center gap-1.5">
-                            <a
-                              className="inline-flex h-7 items-center rounded bg-primary px-2 font-medium text-[10px] text-primary-foreground"
-                              href={notesPath}
-                              rel="noopener noreferrer"
-                              target="_blank"
-                            >
-                              Open notes
-                            </a>
-                            <button
-                              className="inline-flex h-7 items-center gap-1 rounded border px-2 text-[10px]"
-                              onClick={handleCopyNotesLink}
-                              type="button"
-                            >
-                              <Copy size={10} />
-                              {copiedNotesLink ? "Copied" : "Copy link"}
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-[10px] text-muted-foreground">
-                          Save this deck first to generate a notes QR code.
-                        </p>
-                      )}
-                    </div>
-                  </details>
-                </div>
-                <span className="text-[9px] text-muted-foreground/40">
-                  live view
-                </span>
-              </div>
+              <span className="text-[9px] text-muted-foreground/40">
+                live view
+              </span>
             </div>
 
             {/* Canvas surface — coords 0-100% match the presentation content area exactly */}
@@ -890,6 +952,11 @@ export function LayoutCanvas({
               onDragLeave={handleCanvasDragLeave}
               onDragOver={handleCanvasDragOver}
               onDrop={handleCanvasDrop}
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedBoxId(null);
+                }
+              }}
               ref={canvasRef}
             >
               {/* grid */}
@@ -955,20 +1022,39 @@ export function LayoutCanvas({
               {boxes.map((box) => {
                 const isSeparator = box.kind === "separator";
                 const isComponent = box.kind === "component";
-                const section = isSeparator
-                  ? undefined
-                  : sections.find(
-                      (s, i) =>
-                        s.id === box.sectionId ||
-                        `s${i}-${s.id.slice(0, 30)}` === box.sectionId
-                    );
+                const isImage = box.kind === "image";
+                const isShape = box.kind === "shape";
+                const isText = box.kind === "text";
+                const isPageNumber = box.kind === "page-number";
+                const isTimer = box.kind === "timer";
+                const isQrCode = box.kind === "qr-code";
+                const isDecorative =
+                  isImage ||
+                  isShape ||
+                  isText ||
+                  isPageNumber ||
+                  isTimer ||
+                  isQrCode;
+                const section =
+                  isSeparator || isDecorative
+                    ? undefined
+                    : sections.find(
+                        (s, i) =>
+                          s.id === box.sectionId ||
+                          `s${i}-${s.id.slice(0, 30)}` === box.sectionId
+                      );
                 const Component = isComponent
                   ? getMdxComponentByName(
                       box.componentName ?? "",
                       uploadedWidgets
                     )
                   : null;
-                const isOrphaned = !(isSeparator || isComponent || section);
+                const isOrphaned = !(
+                  isSeparator ||
+                  isComponent ||
+                  isDecorative ||
+                  section
+                );
                 const textStyle: CanvasTextStyle = box.textStyle ?? "body";
                 const sectionHeading = section?.heading ?? "";
                 const bodyContent = parseBodyContent(section?.content ?? "");
@@ -1011,6 +1097,8 @@ export function LayoutCanvas({
                   // biome-ignore lint/a11y/noNoninteractiveElementInteractions: this container intentionally handles drag initiation.
                   <div
                     className={`group absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing ${
+                      box.id === selectedBoxId ? "ring-2 ring-primary/80" : ""
+                    } ${
                       isOrphaned
                         ? "border border-amber-400/70 bg-amber-50/80 dark:bg-amber-950/30"
                         : ""
@@ -1037,6 +1125,7 @@ export function LayoutCanvas({
                       isOrphaned ||
                       isSeparator ||
                       isComponent ||
+                      isDecorative ||
                       attachedComponentName
                     ) && (
                       <button
@@ -1084,7 +1173,74 @@ export function LayoutCanvas({
                           )}
                         </div>
                       )}
-                      {!(isOrphaned || isSeparator || isComponent) &&
+                      {isImage && (
+                        <div className="h-full w-full overflow-hidden">
+                          {box.imageUrl ? (
+                            // biome-ignore lint/performance/noImgElement: user-provided external URLs require img tag
+                            // biome-ignore lint/correctness/useImageSize: dimensions are controlled via CSS for user-provided URLs
+                            <img
+                              alt=""
+                              className="h-full w-full object-cover"
+                              src={box.imageUrl}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
+                              No URL set
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {isShape && (
+                        <div
+                          className={`h-full w-full ${box.shapeType === "circle" ? "rounded-full" : "rounded-sm"}`}
+                          style={{
+                            backgroundColor: box.shapeColor ?? "#818cf8",
+                          }}
+                        />
+                      )}
+                      {isText && (
+                        <div className="h-full w-full overflow-hidden">
+                          <p
+                            className={`wrap-break-word ${getTextStyleClasses(box.textStyle ?? "subtitle")}`}
+                          >
+                            {box.staticText || "Text box"}
+                          </p>
+                        </div>
+                      )}
+                      {isPageNumber && (
+                        <div className="flex h-full w-full items-center justify-center font-mono text-[clamp(0.75rem,2cqw,1.5rem)] text-foreground/70">
+                          1 / N
+                        </div>
+                      )}
+                      {isTimer && (
+                        <div className="flex h-full w-full items-center justify-center font-mono text-[clamp(0.75rem,2cqw,1.5rem)] text-foreground/70">
+                          00:00
+                        </div>
+                      )}
+                      {isQrCode && (
+                        <div className="flex h-full w-full items-center justify-center">
+                          {qrImageUrl ? (
+                            <Image
+                              alt="Notes QR code"
+                              className="h-full w-full object-contain"
+                              height={200}
+                              src={qrImageUrl}
+                              unoptimized
+                              width={200}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
+                              Save deck for QR
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!(
+                        isOrphaned ||
+                        isSeparator ||
+                        isComponent ||
+                        isDecorative
+                      ) &&
                         attachedComponentName && (
                           <div className="h-full w-full overflow-auto text-foreground">
                             <p className="mb-2 text-[10px] text-muted-foreground uppercase tracking-wide">
@@ -1106,6 +1262,7 @@ export function LayoutCanvas({
                         isOrphaned ||
                         isSeparator ||
                         isComponent ||
+                        isDecorative ||
                         attachedComponentName
                       ) && (
                         <div className="h-full w-full overflow-auto text-foreground">

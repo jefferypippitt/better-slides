@@ -7,7 +7,7 @@ import { SlideBar } from "./slide-bar";
 
 export function CtaSlide() {
   return (
-    <section className="landing-section sticky top-0 z-7 flex h-svh flex-col overflow-hidden bg-background">
+    <section className="landing-section sticky top-0 z-8 flex h-svh flex-col overflow-hidden bg-background">
       <SlideBar left="07 / 07" right="GET STARTED" />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-7 p-8 text-center">

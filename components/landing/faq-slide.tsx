@@ -6,8 +6,8 @@ import { SlideBar } from "./slide-bar";
 
 const FAQS = [
   {
-    q: "Is Better Slides free to use?",
-    a: "Yes — free to get started with no credit card required. Create your first deck immediately after signing up.",
+    q: "Which file formats are supported?",
+    a: "Deck content is markdown-first: upload `.md` and `.mdx`. For interactive slides, you can also upload `.tsx` React widgets and use them inside MDX.",
   },
   {
     q: "Do I need to know how to code?",
@@ -31,7 +31,7 @@ export function FaqSlide() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="landing-section sticky top-0 z-6 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
+    <section className="landing-section sticky top-0 z-7 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="06 / 07" right="FAQ" />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

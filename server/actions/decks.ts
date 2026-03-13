@@ -22,6 +22,34 @@ import {
 } from "@/lib/widget-compiler";
 
 const TSX_EXT_RE = /\.tsx?$/i;
+const TITLE_MAX_LENGTH = 80;
+const NOTES_MAX_LENGTH = 1500;
+const MDX_MAX_LENGTH = 500_000;
+
+function validateDeckInput(data: {
+  title?: string;
+  mdx?: string;
+  slides?: SlideLayout[];
+}) {
+  if (data.title !== undefined && data.title.length > TITLE_MAX_LENGTH) {
+    throw new Error(`Title must be ${TITLE_MAX_LENGTH} characters or fewer.`);
+  }
+  if (data.mdx !== undefined && data.mdx.length > MDX_MAX_LENGTH) {
+    throw new Error("Deck content is too large.");
+  }
+  if (data.slides) {
+    for (const slide of data.slides) {
+      if (
+        slide.speakerNotes !== undefined &&
+        slide.speakerNotes.length > NOTES_MAX_LENGTH
+      ) {
+        throw new Error(
+          `Speaker notes must be ${NOTES_MAX_LENGTH} characters or fewer.`
+        );
+      }
+    }
+  }
+}
 
 async function requireSession() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -42,6 +70,11 @@ export async function createDeckAction(data?: {
   slides?: SlideLayout[];
 }): Promise<Deck> {
   const session = await requireSession();
+  validateDeckInput({
+    title: data?.title,
+    mdx: data?.mdx,
+    slides: data?.slides,
+  });
   return saveDeck({
     userId: session.user.id,
     title: data?.title ?? DEFAULT_DECK_TITLE,
@@ -59,6 +92,11 @@ export async function updateDeckAction(
   if (!existing || existing.userId !== session.user.id) {
     throw new Error("Not found");
   }
+  validateDeckInput({
+    title: updates.title,
+    mdx: updates.mdx,
+    slides: updates.slides,
+  });
   const updated = await updateDeck(deckId, updates);
   if (!updated) {
     throw new Error("Update failed");

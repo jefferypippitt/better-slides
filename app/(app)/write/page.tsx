@@ -14,13 +14,6 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  createDeckAction,
-  deleteDeckAction,
-  listDecksAction,
-  updateDeckAction,
-  uploadDeckWidgetAction,
-} from "@/app/actions/decks";
 import { DeckSidebar } from "@/components/editor/deck-sidebar";
 import type { CanvasBox } from "@/components/editor/layout-canvas";
 import { LayoutCanvas } from "@/components/editor/layout-canvas";
@@ -45,6 +38,13 @@ import {
 import type { Deck, SlideLayout } from "@/lib/decks";
 import { DEFAULT_DECK_MDX, DEFAULT_DECK_TITLE } from "@/lib/default-deck";
 import { parseMarkdownSections } from "@/lib/sections";
+import {
+  createDeckAction,
+  deleteDeckAction,
+  listDecksAction,
+  updateDeckAction,
+  uploadDeckWidgetAction,
+} from "@/server/actions/decks";
 
 const MdxEditor = dynamic(
   () =>
@@ -56,7 +56,9 @@ const MdxEditor = dynamic(
 
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 const FRONT_MATTER_RE = /^---[\s\S]*?---\n?/;
-const JSX_COMPONENT_RE = /<([A-Z][a-zA-Z0-9]*)\s*\/?>/;
+const TITLE_MAX_LENGTH = 80;
+const NOTES_MAX_LENGTH = 1500;
+const MDX_MAX_BYTES = 500_000;
 
 function getFileExt(name: string): string {
   const dot = name.lastIndexOf(".");
@@ -194,31 +196,40 @@ export default function WritePage() {
     });
   }
 
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      if (activeDeckId) {
-        const updated = await updateDeckAction(activeDeckId, {
-          title,
-          mdx,
-          slides,
-        });
-        setDecks((prev) =>
-          prev.map((d) => (d.id === updated.id ? updated : d))
-        );
-        if (updated.id === activeDeckId) {
-          setDeckWidgets(updated.widgets);
+  const handleSave = useCallback(
+    async (overrides?: { mdx?: string; slides?: SlideLayout[] }) => {
+      const effectiveMdx = overrides?.mdx ?? mdx;
+      const effectiveSlides = overrides?.slides ?? slides;
+      setSaving(true);
+      try {
+        if (activeDeckId) {
+          const updated = await updateDeckAction(activeDeckId, {
+            title,
+            mdx: effectiveMdx,
+            slides: effectiveSlides,
+          });
+          setDecks((prev) =>
+            prev.map((d) => (d.id === updated.id ? updated : d))
+          );
+          if (updated.id === activeDeckId) {
+            setDeckWidgets(updated.widgets);
+          }
+        } else {
+          const deck = await createDeckAction({
+            title,
+            mdx: effectiveMdx,
+            slides: effectiveSlides,
+          });
+          setDecks((prev) => [...prev, deck]);
+          setActiveDeckId(deck.id);
+          setDeckWidgets(deck.widgets);
         }
-      } else {
-        const deck = await createDeckAction({ title, mdx, slides });
-        setDecks((prev) => [...prev, deck]);
-        setActiveDeckId(deck.id);
-        setDeckWidgets(deck.widgets);
+      } finally {
+        setSaving(false);
       }
-    } finally {
-      setSaving(false);
-    }
-  }, [activeDeckId, slides, title, mdx]);
+    },
+    [activeDeckId, slides, title, mdx]
+  );
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -312,30 +323,22 @@ export default function WritePage() {
     setUploadError("");
     setUploading(true);
     try {
-      if (MARKDOWN_EXTS.has(getFileExt(file.name))) {
-        // Read markdown directly — no AI needed
-        const text = await file.text();
-        setMdx(text);
-        setSlides([]);
-        setActiveSlideIndex(0);
-      } else {
-        // All other formats: convert via AI
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/import", {
-          method: "POST",
-          body: formData,
-        });
-        if (!res.ok) {
-          throw new Error("Import failed");
-        }
-        const data = await res.json();
-        setMdx(data.mdx);
-        setSlides([]);
-        setActiveSlideIndex(0);
+      if (!MARKDOWN_EXTS.has(getFileExt(file.name))) {
+        setUploadError("Only Markdown files (.md, .mdx) are supported.");
+        return;
       }
+      if (file.size > MDX_MAX_BYTES) {
+        setUploadError("File is too large. Maximum size is 500 KB.");
+        return;
+      }
+      const text = await file.text();
+      const cleanedMdx = text.replace(/\r/g, "").split("\0").join("");
+      setMdx(cleanedMdx);
+      setSlides([]);
+      setActiveSlideIndex(0);
+      await handleSave({ mdx: cleanedMdx, slides: [] });
     } catch {
-      setUploadError("Failed to import file. Please try again.");
+      setUploadError("Failed to import Markdown file. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -389,18 +392,11 @@ export default function WritePage() {
       error: (err: unknown) =>
         err instanceof Error && err.message
           ? err.message
-          : "Widget upload failed. Use a pure React TSX component.",
+          : "React widget upload failed. Use a pure React TSX component.",
     });
 
     try {
-      const componentName = await promise;
-      // Auto-attach to any section whose content references this component by JSX tag
-      for (const section of mdxSections) {
-        const match = section.content.match(JSX_COMPONENT_RE);
-        if (match?.[1] === componentName) {
-          handleAttachWidgetToSection(section.id, componentName);
-        }
-      }
+      await promise;
     } catch {
       // handled by toast
     } finally {
@@ -426,28 +422,14 @@ export default function WritePage() {
     setActiveSlideIndex(Math.min(activeSlideIndex, next.length - 1));
   }
 
-  function handleAddSeparator(orientation: "horizontal" | "vertical") {
-    const separator =
-      orientation === "vertical"
-        ? {
-            h: 70,
-            id: `sep-${nanoid()}`,
-            kind: "separator" as const,
-            w: 4,
-            x: 48,
-            y: 15,
-          }
-        : {
-            h: 4,
-            id: `sep-${nanoid()}`,
-            kind: "separator" as const,
-            w: 70,
-            x: 15,
-            y: 48,
-          };
+  function handleAddElement(element: Omit<CanvasBox, "id">) {
+    const box: CanvasBox = {
+      ...element,
+      id: `${element.kind ?? "box"}-${nanoid()}`,
+    };
 
     if (slides.length === 0) {
-      setSlides([{ canvasLayout: [separator], id: nanoid() }]);
+      setSlides([{ canvasLayout: [box], id: nanoid(), speakerNotes: "" }]);
       setActiveSlideIndex(0);
       return;
     }
@@ -455,7 +437,7 @@ export default function WritePage() {
     setSlides((prev) =>
       prev.map((slide, index) =>
         index === activeSlideIndex
-          ? { ...slide, canvasLayout: [...slide.canvasLayout, separator] }
+          ? { ...slide, canvasLayout: [...slide.canvasLayout, box] }
           : slide
       )
     );
@@ -503,7 +485,16 @@ export default function WritePage() {
   const outlineSectionWidgetMap = useMemo(() => {
     const map: Record<string, string | undefined> = {};
     for (const box of activeSlide?.canvasLayout ?? []) {
-      if (box.kind === "component" || box.kind === "separator") {
+      if (
+        box.kind === "component" ||
+        box.kind === "separator" ||
+        box.kind === "image" ||
+        box.kind === "shape" ||
+        box.kind === "text" ||
+        box.kind === "page-number" ||
+        box.kind === "timer" ||
+        box.kind === "qr-code"
+      ) {
         continue;
       }
       if (!(box.sectionId && box.componentName)) {
@@ -518,7 +509,8 @@ export default function WritePage() {
     [deckWidgets]
   );
 
-  function handleSwitchToLayout() {
+  async function handleSwitchToLayout() {
+    await handleSave();
     setViewMode("layout");
   }
   return (
@@ -531,13 +523,14 @@ export default function WritePage() {
         <input
           aria-label="Deck title"
           className="min-w-0 flex-1 bg-transparent font-medium text-sm outline-none"
+          maxLength={TITLE_MAX_LENGTH}
           onChange={(e) => setTitle(e.target.value)}
           type="text"
           value={title}
         />
         <Button
           disabled={saving}
-          onClick={handleSave}
+          onClick={() => handleSave()}
           size="sm"
           variant="outline"
         >
@@ -625,7 +618,7 @@ export default function WritePage() {
                     type="button"
                   >
                     <UploadSimple size={12} />
-                    {uploading ? "Importing…" : "Upload file"}
+                    {uploading ? "Importing…" : "Upload Markdown"}
                   </button>
                   {uploadError && (
                     <span className="text-[11px] text-destructive">
@@ -647,14 +640,16 @@ export default function WritePage() {
                     type="button"
                   >
                     <UploadSimple size={12} />
-                    {widgetUploading ? "Uploading…" : "Upload TSX"}
+                    {widgetUploading
+                      ? "Uploading component…"
+                      : "Upload Component"}
                   </button>
                 </>
               )}
 
               {editorSubView === "text" && (
                 <span className="ml-auto text-[10px] text-muted-foreground/50">
-                  MD, MDX · PDF, DOCX, XLSX, CSV, HTML, etc.
+                  Deck content: MD, MDX · React widgets: upload in Outline
                 </span>
               )}
             </div>
@@ -679,7 +674,7 @@ export default function WritePage() {
           <DeckSidebar
             activeDeckId={activeDeckId}
             decks={decks}
-            onAddSeparator={handleAddSeparator}
+            onAddElement={handleAddElement}
             onDeleteDeck={handleDeleteDeck}
             onNewDeck={handleNewDeck}
             onRenameDeck={handleRenameDeck}
@@ -782,7 +777,11 @@ export default function WritePage() {
                 initialLayout={activeSlide?.canvasLayout ?? []}
                 key={activeSlide?.id ?? "empty"}
                 mdx={mdx}
-                notesPath={activeDeckId ? `/notes/${activeDeckId}` : undefined}
+                notesPath={
+                  activeDeckId
+                    ? `/notes/${activeDeckId}?mode=window`
+                    : undefined
+                }
                 onLayoutChange={handleSlideLayoutChange}
                 qrPath={
                   activeDeckId ? `/api/notes-qr/${activeDeckId}` : undefined
@@ -800,7 +799,7 @@ export default function WritePage() {
 
       {/* Hidden file input shared across editor modes */}
       <input
-        accept=".md,.mdx,.pdf,.docx,.xlsx,.xls,.csv,.txt,.html,.htm,.json"
+        accept=".md,.mdx"
         className="hidden"
         onChange={handleFileChange}
         ref={fileInputRef}
@@ -846,6 +845,7 @@ export default function WritePage() {
               </InputGroupAddon>
               <InputGroupTextarea
                 className="max-h-[400px] min-h-[220px] resize-none overflow-y-auto"
+                maxLength={NOTES_MAX_LENGTH}
                 onChange={(e) =>
                   handleSpeakerNotesChangeForSlide(
                     dialogSlideIndex,
@@ -856,10 +856,18 @@ export default function WritePage() {
                 value={dialogSlide.speakerNotes ?? ""}
               />
               <InputGroupAddon align="block-end" className="border-t">
-                <InputGroupText>
+                <InputGroupText
+                  className={
+                    !copiedNotes &&
+                    (dialogSlide.speakerNotes ?? "").length >=
+                      NOTES_MAX_LENGTH * 0.9
+                      ? "text-destructive"
+                      : undefined
+                  }
+                >
                   {copiedNotes
                     ? "Copied to clipboard"
-                    : `${(dialogSlide.speakerNotes ?? "").length} characters`}
+                    : `${(dialogSlide.speakerNotes ?? "").length} / ${NOTES_MAX_LENGTH}`}
                 </InputGroupText>
                 <InputGroupButton
                   className="ml-auto"

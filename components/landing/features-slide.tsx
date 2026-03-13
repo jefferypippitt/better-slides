@@ -1,14 +1,14 @@
 "use client";
 
 import {
+  ArrowSquareOutIcon,
   ArrowsOutCardinalIcon,
   CodeSimpleIcon,
   DeviceMobileCameraIcon,
   DeviceMobileIcon,
-  FileArrowUpIcon,
   FilesIcon,
   ListChecksIcon,
-  MoonIcon,
+  ShapesIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import { SlideBar } from "./slide-bar";
@@ -20,51 +20,51 @@ const FEATURES = [
     desc: "Draft slides in plain Markdown, then drop in live React components anywhere you need custom visuals.",
   },
   {
-    icon: <FileArrowUpIcon size={22} weight="light" />,
-    title: "Flexible File Uploads",
-    desc: "Bring in your existing source files and turn them into slides instead of rewriting content from scratch.",
+    icon: <UploadSimpleIcon size={22} weight="light" />,
+    title: "TSX Widget Uploads",
+    desc: "Upload `.tsx` React components like theme toggles, counters, charts, and custom UI, then render them directly in your slides.",
   },
   {
     icon: <DeviceMobileIcon size={22} weight="light" />,
     title: "Mobile Notes View",
-    desc: "Use your phone as a private confidence monitor while the audience only sees the presentation.",
+    desc: "Use your phone to read notes and control the presentation. We even have an auto-sync system where each note is synced to the presentation in real-time.",
   },
   {
-    icon: <MoonIcon size={22} weight="light" />,
-    title: "Dark Mode",
-    desc: "Switch themes instantly for bright rooms, projectors, or late-night edits without eye strain.",
+    icon: <ShapesIcon size={22} weight="light" />,
+    title: "Built-in Elements",
+    desc: "Drop in separators, text blocks, images, shapes, emoji, timers, and page numbers without writing custom code.",
   },
   {
     icon: <ArrowsOutCardinalIcon size={22} weight="light" />,
-    title: "Visual Slide Composer",
-    desc: "Rearrange sections by dragging visual blocks on a live canvas when the narrative order changes.",
+    title: "Visual Layout Composer",
+    desc: "Rearrange sections by dragging visual blocks on a live canvas. The layout stays at the same position on every slide.",
   },
   {
     icon: <DeviceMobileCameraIcon size={22} weight="light" />,
-    title: "QR Presenter Connect",
-    desc: "Scan once to pair your phone and control progression remotely with no account setup or cable pairing.",
-  },
-  {
-    icon: <ListChecksIcon size={22} weight="light" />,
-    title: "Presenter Notes",
-    desc: "Attach per-slide talking points, reminders, and timing cues that stay hidden from your audience.",
+    title: "QR Connect",
+    desc: "Scan your phone to connect to the presentation and control it remotely. We support multiple presenters connected to the same deck.",
   },
   {
     icon: <FilesIcon size={22} weight="light" />,
-    title: "Multi-Slide Workflow",
-    desc: "Jump between slides quickly, duplicate ideas, and iterate on the full deck without losing momentum.",
+    title: "Multi-Deck Workspace",
+    desc: "Create, rename, and organize multiple decks in one place, then jump between them without losing momentum.",
   },
   {
-    icon: <UploadSimpleIcon size={22} weight="light" />,
-    title: "Import TSX Slides",
-    desc: "Bring your existing .tsx slide files into a deck and present them without rebuilding everything from scratch.",
+    icon: <ListChecksIcon size={22} weight="light" />,
+    title: "Precision Editing Tools",
+    desc: "Use grid snapping, center guides, and quick undo to fine-tune layout details fast without fighting alignment.",
+  },
+  {
+    icon: <ArrowSquareOutIcon size={22} weight="light" />,
+    title: "1:1 Stage Preview",
+    desc: "Design on a 16:9 canvas that mirrors the live stage, then open Present mode in one click when it is time to deliver.",
   },
 ] as const;
 
 export function FeaturesSlide() {
   return (
-    <section className="landing-section sticky top-0 z-4 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
-      <SlideBar left="04 / 07" right="FEATURES" />
+    <section className="landing-section sticky top-0 z-5 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
+      <SlideBar left="05 / 07" right="FEATURES" />
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 p-8">
         <h2 className="text-center font-bold text-[clamp(1.8rem,4vw,3rem)] tracking-tight">

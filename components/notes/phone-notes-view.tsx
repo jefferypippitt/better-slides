@@ -1,118 +1,57 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
+import { useNotesSync } from "@/components/notes/use-notes-sync";
+import { Button } from "@/components/ui/button";
 
-interface PhoneNotesViewProps {
+export interface NotesViewProps {
   notes: (string | null)[];
   pollInterval?: number;
   syncEndpoint: string;
-}
-
-function generateId(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function getOrCreateClientId(): string {
-  const key = "better-slides-cid";
-  const existing = sessionStorage.getItem(key);
-  if (existing) {
-    return existing;
-  }
-  const id = generateId();
-  sessionStorage.setItem(key, id);
-  return id;
+  syncMode?: "poll" | "broadcast";
 }
 
 export function PhoneNotesView({
   notes,
   syncEndpoint,
   pollInterval = 1500,
-}: PhoneNotesViewProps) {
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [total, setTotal] = useState(notes.length || 1);
-  const [connected, setConnected] = useState(false);
-  const [active, setActive] = useState(true);
-  const [viewers, setViewers] = useState(0);
-  const clientId = useRef<string | null>(null);
+  syncMode = "poll",
+}: NotesViewProps) {
+  const {
+    slideIndex,
+    total,
+    connected,
+    active,
+    ended,
+    viewers,
+    currentNote,
+    label,
+    dotColor,
+    statusLabel,
+    navigate,
+    handleDisconnect,
+    handleReconnect,
+  } = useNotesSync({ notes, syncEndpoint, pollInterval, syncMode });
 
-  useEffect(() => {
-    clientId.current = getOrCreateClientId();
-  }, []);
-
-  const poll = useCallback(async () => {
-    const cid = clientId.current;
-    const url = cid
-      ? `${syncEndpoint}&cid=${encodeURIComponent(cid)}`
-      : syncEndpoint;
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) {
-        return;
-      }
-      const data = (await res.json()) as {
-        slide: number;
-        total: number;
-        viewers?: number;
-      };
-      setTotal(data.total);
-      setConnected(true);
-      setSlideIndex(data.slide - 1);
-      if (data.viewers !== undefined) {
-        setViewers(data.viewers);
-      }
-    } catch {
-      setConnected(false);
-    }
-  }, [syncEndpoint]);
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-    poll();
-    const id = setInterval(poll, pollInterval);
-    return () => clearInterval(id);
-  }, [active, poll, pollInterval]);
-
-  const navigate = useCallback(
-    async (newIndex: number) => {
-      const clamped = Math.max(0, Math.min(newIndex, total - 1));
-      setSlideIndex(clamped);
-      if (!active) {
-        return;
-      }
-      try {
-        await fetch(syncEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slide: clamped + 1, total }),
-        });
-      } catch {
-        // ignore network errors
-      }
-    },
-    [active, syncEndpoint, total]
-  );
-
-  const handleDisconnect = () => {
-    setActive(false);
-    setConnected(false);
-  };
-
-  const handleReconnect = () => {
-    setActive(true);
-  };
-
-  const currentNote =
-    slideIndex >= 0 && slideIndex < notes.length ? notes[slideIndex] : null;
-  const label = `Slide ${slideIndex + 1} / ${total}`;
-  let dotColor = "#525252";
-  let statusLabel = "Paused";
-  if (active) {
-    dotColor = connected ? "#22c55e" : "#ef4444";
-    statusLabel = connected ? "Live" : "Connecting…";
+  if (ended) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0a0a0a",
+          color: "#525252",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          fontSize: "36px",
+          fontWeight: 600,
+          letterSpacing: "-0.025em",
+        }}
+      >
+        Presentation ended
+      </div>
+    );
   }
 
   return (
@@ -175,45 +114,26 @@ export function PhoneNotesView({
 
           {/* Disconnect / Reconnect */}
           {active ? (
-            <button
+            <Button
+              aria-label="Disconnect"
+              className="rounded-full"
               onClick={handleDisconnect}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                border: "1px solid #333",
-                backgroundColor: "transparent",
-                color: "#737373",
-                fontSize: "13px",
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-                lineHeight: 1,
-              }}
+              size="icon-sm"
               title="Disconnect"
               type="button"
+              variant="outline"
             >
-              ✕
-            </button>
+              <XIcon />
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleReconnect}
-              style={{
-                padding: "2px 8px",
-                borderRadius: "6px",
-                border: "1px solid #333",
-                backgroundColor: "#1a1a1a",
-                color: "#e5e5e5",
-                fontSize: "12px",
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-              }}
+              size="xs"
               type="button"
+              variant="outline"
             >
               Reconnect
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -258,44 +178,28 @@ export function PhoneNotesView({
           borderTop: "1px solid #262626",
         }}
       >
-        <button
+        <Button
+          className="flex-1"
           disabled={slideIndex <= 0}
           onClick={() => navigate(slideIndex - 1)}
-          style={{
-            flex: 1,
-            padding: "14px",
-            fontSize: "16px",
-            fontWeight: 500,
-            border: "1px solid #333",
-            borderRadius: "10px",
-            backgroundColor: slideIndex <= 0 ? "#111" : "#1a1a1a",
-            color: slideIndex <= 0 ? "#444" : "#e5e5e5",
-            cursor: slideIndex <= 0 ? "default" : "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
+          size="lg"
           type="button"
+          variant="outline"
         >
-          ← Prev
-        </button>
-        <button
+          <CaretLeftIcon data-icon="inline-start" />
+          Prev
+        </Button>
+        <Button
+          className="flex-1"
           disabled={slideIndex >= total - 1}
           onClick={() => navigate(slideIndex + 1)}
-          style={{
-            flex: 1,
-            padding: "14px",
-            fontSize: "16px",
-            fontWeight: 500,
-            border: "1px solid #333",
-            borderRadius: "10px",
-            backgroundColor: slideIndex >= total - 1 ? "#111" : "#1a1a1a",
-            color: slideIndex >= total - 1 ? "#444" : "#e5e5e5",
-            cursor: slideIndex >= total - 1 ? "default" : "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
+          size="lg"
           type="button"
+          variant="outline"
         >
-          Next →
-        </button>
+          Next
+          <CaretRightIcon data-icon="inline-end" />
+        </Button>
       </div>
     </div>
   );

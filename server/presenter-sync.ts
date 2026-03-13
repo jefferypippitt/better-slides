@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { deck, presenterPresence, presenterSync } from "@/lib/db/schema";
 import { verifyPresenterToken } from "@/lib/presenter-token";
 
-// Clients not seen in this window are considered disconnected.
 const PRESENCE_TTL_MS = 10_000;
 
 function getDeckId(request: NextRequest): string | null {
@@ -40,14 +39,11 @@ async function resolveOwnerUserId(
   request: NextRequest,
   deckId: string
 ): Promise<string | null> {
-  // Presenter token takes priority — check it first to avoid calling auth.api.getSession
-  // for cross-origin phone requests, which can throw.
   const token = request.nextUrl.searchParams.get("pt");
   if (typeof token === "string" && verifyPresenterToken(token, deckId)) {
     return getDeckOwnerId(deckId);
   }
 
-  // Fall back to session auth (desktop presenter on same origin).
   try {
     const session = await auth.api.getSession({ headers: request.headers });
     if (session) {
@@ -57,13 +53,15 @@ async function resolveOwnerUserId(
       }
     }
   } catch {
-    // auth.api.getSession can throw for cross-origin requests; treat as no session.
+    // auth.api.getSession may throw for cross-origin requests.
   }
 
   return null;
 }
 
-export async function GET(request: NextRequest) {
+export async function getPresenterSyncResponse(
+  request: NextRequest
+): Promise<NextResponse> {
   const deckId = getDeckId(request);
   if (!deckId) {
     return NextResponse.json({ error: "Missing deckId" }, { status: 400 });
@@ -77,7 +75,6 @@ export async function GET(request: NextRequest) {
   const cid = request.nextUrl.searchParams.get("cid");
   const now = new Date();
 
-  // Upsert this client's presence heartbeat.
   if (cid) {
     await db
       .insert(presenterPresence)
@@ -88,7 +85,6 @@ export async function GET(request: NextRequest) {
       });
   }
 
-  // Count clients that have checked in within the TTL window.
   const cutoff = new Date(now.getTime() - PRESENCE_TTL_MS);
   const [{ viewers }] = await db
     .select({ viewers: count() })
@@ -106,6 +102,14 @@ export async function GET(request: NextRequest) {
     .where(eq(presenterSync.deckId, deckId))
     .limit(1);
   const state = rows[0];
+  if (state && state.slide === 0) {
+    return NextResponse.json({
+      slide: 0,
+      total: state.total,
+      viewers,
+      ended: true,
+    });
+  }
   return NextResponse.json(
     state
       ? { slide: state.slide, total: state.total, viewers }
@@ -113,7 +117,9 @@ export async function GET(request: NextRequest) {
   );
 }
 
-export async function POST(request: NextRequest) {
+export async function postPresenterSyncResponse(
+  request: NextRequest
+): Promise<NextResponse> {
   const deckId = getDeckId(request);
   if (!deckId) {
     return NextResponse.json({ error: "Missing deckId" }, { status: 400 });

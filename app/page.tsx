@@ -5,7 +5,7 @@ import { HeroSlide } from "@/components/landing/hero-slide";
 import { LandingScroll } from "@/components/landing/landing-scroll";
 import { ProblemSlide } from "@/components/landing/problem-slide";
 import { SolutionSlide } from "@/components/landing/solution-slide";
-import { UploadFormatsSlide } from "@/components/landing/upload-formats-slide";
+import { WorkflowSlide } from "@/components/landing/workflow-slide";
 
 export default function LandingPage() {
   return (
@@ -13,8 +13,8 @@ export default function LandingPage() {
       <HeroSlide />
       <ProblemSlide />
       <SolutionSlide />
+      <WorkflowSlide />
       <FeaturesSlide />
-      <UploadFormatsSlide />
       <FaqSlide />
       <CtaSlide />
     </LandingScroll>
