@@ -43,10 +43,11 @@ export function validateSafeWidgetSource(sourceTsx: string): void {
     }
     const isReactImport = moduleName === "react";
     const isLucideImport = moduleName === "lucide-react";
+    const isPhosphorImport = moduleName === "@phosphor-icons/react";
     const isUiImport = moduleName.startsWith("@/components/ui/");
-    if (!(isReactImport || isLucideImport || isUiImport)) {
+    if (!(isReactImport || isLucideImport || isPhosphorImport || isUiImport)) {
       throw new Error(
-        `Unsupported import "${moduleName}". Allowed runtime imports: react, lucide-react, and @/components/ui/* (type-only imports are also allowed).`
+        `Unsupported import "${moduleName}". Allowed runtime imports: react, lucide-react, @phosphor-icons/react, and @/components/ui/* (type-only imports are also allowed).`
       );
     }
   }

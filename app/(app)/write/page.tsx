@@ -2,8 +2,8 @@
 
 import {
   ArrowSquareOut,
+  CheckSquare,
   Copy,
-  NotePencil,
   Plus,
   Trash,
   UploadSimple,
@@ -13,6 +13,7 @@ import { nanoid } from "nanoid";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   createDeckAction,
   deleteDeckAction,
@@ -55,6 +56,7 @@ const MdxEditor = dynamic(
 
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 const FRONT_MATTER_RE = /^---[\s\S]*?---\n?/;
+const JSX_COMPONENT_RE = /<([A-Z][a-zA-Z0-9]*)\s*\/?>/;
 
 function getFileExt(name: string): string {
   const dot = name.lastIndexOf(".");
@@ -94,6 +96,7 @@ export default function WritePage() {
   const [presenting, setPresenting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [widgetUploading, setWidgetUploading] = useState(false);
   const [widgetAttachTargetSectionId, setWidgetAttachTargetSectionId] =
     useState<string | null>(null);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -273,11 +276,6 @@ export default function WritePage() {
     });
   }
 
-  function handleUploadWidgetForSection(sectionId: string) {
-    setWidgetAttachTargetSectionId(sectionId);
-    widgetFileInputRef.current?.click();
-  }
-
   function handleUploadWidgetToLibrary() {
     setWidgetAttachTargetSectionId(null);
     widgetFileInputRef.current?.click();
@@ -347,15 +345,28 @@ export default function WritePage() {
     e: React.ChangeEvent<HTMLInputElement>
   ) {
     const file = e.target.files?.[0];
-    if (!(file && activeDeckId)) {
+    if (!file) {
       return;
     }
     e.target.value = "";
-    setUploadError("");
-    try {
+    setWidgetUploading(true);
+
+    const targetSectionId = widgetAttachTargetSectionId;
+
+    const doUpload = async () => {
+      // Auto-save the deck first if it hasn't been persisted yet
+      let deckId = activeDeckId;
+      if (!deckId) {
+        const deck = await createDeckAction({ title, mdx, slides });
+        setDecks((prev) => [...prev, deck]);
+        setActiveDeckId(deck.id);
+        setDeckWidgets(deck.widgets);
+        deckId = deck.id;
+      }
+
       const sourceTsx = await file.text();
       const widget = await uploadDeckWidgetAction({
-        deckId: activeDeckId,
+        deckId,
         fileName: file.name,
         sourceTsx,
       });
@@ -364,19 +375,36 @@ export default function WritePage() {
         next.push(widget);
         return next;
       });
-      if (widgetAttachTargetSectionId) {
-        handleAttachWidgetToSection(
-          widgetAttachTargetSectionId,
-          widget.componentName
-        );
+      if (targetSectionId) {
+        handleAttachWidgetToSection(targetSectionId, widget.componentName);
       }
-    } catch (err: unknown) {
-      const message =
+      return widget.componentName;
+    };
+
+    const promise = doUpload();
+
+    toast.promise(promise, {
+      loading: `Uploading ${file.name}…`,
+      success: (componentName) => `"${componentName}" uploaded successfully`,
+      error: (err: unknown) =>
         err instanceof Error && err.message
           ? err.message
-          : "Widget upload failed. Use a pure React TSX component.";
-      setUploadError(message);
+          : "Widget upload failed. Use a pure React TSX component.",
+    });
+
+    try {
+      const componentName = await promise;
+      // Auto-attach to any section whose content references this component by JSX tag
+      for (const section of mdxSections) {
+        const match = section.content.match(JSX_COMPONENT_RE);
+        if (match?.[1] === componentName) {
+          handleAttachWidgetToSection(section.id, componentName);
+        }
+      }
+    } catch {
+      // handled by toast
     } finally {
+      setWidgetUploading(false);
       setWidgetAttachTargetSectionId(null);
     }
   }
@@ -489,6 +517,10 @@ export default function WritePage() {
     () => [...new Set(deckWidgets.map((widget) => widget.componentName))],
     [deckWidgets]
   );
+
+  function handleSwitchToLayout() {
+    setViewMode("layout");
+  }
   return (
     <div className="flex h-svh flex-col overflow-hidden">
       {/* Top bar */}
@@ -513,7 +545,9 @@ export default function WritePage() {
         </Button>
         <Button
           onClick={() =>
-            setViewMode((prev) => (prev === "editor" ? "layout" : "editor"))
+            viewMode === "editor"
+              ? handleSwitchToLayout()
+              : setViewMode("editor")
           }
           size="sm"
           variant="outline"
@@ -604,22 +638,17 @@ export default function WritePage() {
               {editorSubView === "outline" && (
                 <>
                   <span className="text-[11px] text-muted-foreground">
-                    {mdxSections.length} nodes · drag to reorder · attach TSX
-                    per node
+                    {mdxSections.length} nodes
                   </span>
                   <button
-                    className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={widgetUploading}
                     onClick={handleUploadWidgetToLibrary}
                     type="button"
                   >
                     <UploadSimple size={12} />
-                    Upload TSX
+                    {widgetUploading ? "Uploading…" : "Upload TSX"}
                   </button>
-                  {uploadError && (
-                    <span className="text-[11px] text-destructive">
-                      {uploadError}
-                    </span>
-                  )}
                 </>
               )}
 
@@ -637,7 +666,6 @@ export default function WritePage() {
                 <SlideOrganizer
                   onAttachWidget={handleAttachWidgetToSection}
                   onReorder={handleSectionReorder}
-                  onUploadWidget={handleUploadWidgetForSection}
                   sections={mdxSections}
                   sectionWidgetMap={outlineSectionWidgetMap}
                   widgetNames={availableWidgetNames}
@@ -685,20 +713,11 @@ export default function WritePage() {
                     <span className="text-[10px] text-muted-foreground">
                       Slide {i + 1}
                     </span>
-                    <button
-                      className="ml-auto rounded px-1 py-0.5 text-[9px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      onClick={() => openNotesDialog(i)}
-                      type="button"
-                    >
-                      + Add notes
-                    </button>
                     {slides.length > 1 && (
                       <button
                         aria-label="Delete slide"
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => {
-                          handleDeleteSlide(i);
-                        }}
+                        className="ml-auto rounded p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDeleteSlide(i)}
                         type="button"
                       >
                         <Trash size={10} />
@@ -715,6 +734,20 @@ export default function WritePage() {
                     type="button"
                   >
                     <span>{i + 1}</span>
+                  </button>
+                  <button
+                    className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded border py-1 text-[10px] transition-colors ${
+                      slide.speakerNotes?.trim()
+                        ? "border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400"
+                        : "border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400"
+                    }`}
+                    onClick={() => openNotesDialog(i)}
+                    type="button"
+                  >
+                    {slide.speakerNotes?.trim() && (
+                      <CheckSquare size={11} weight="fill" />
+                    )}
+                    {slide.speakerNotes?.trim() ? "Notes" : "Add notes"}
                   </button>
                 </div>
               ))}
@@ -793,10 +826,6 @@ export default function WritePage() {
           {dialogSlide && (
             <InputGroup className="h-auto">
               <InputGroupAddon align="block-start" className="border-b">
-                <InputGroupText className="font-medium text-[11px]">
-                  <NotePencil size={13} />
-                  Speaker notes - Slide {dialogSlideIndex + 1}
-                </InputGroupText>
                 <InputGroupButton
                   className="ml-auto"
                   onClick={() =>
@@ -816,7 +845,7 @@ export default function WritePage() {
                 </InputGroupButton>
               </InputGroupAddon>
               <InputGroupTextarea
-                className="min-h-[220px]"
+                className="max-h-[400px] min-h-[220px] resize-none overflow-y-auto"
                 onChange={(e) =>
                   handleSpeakerNotesChangeForSlide(
                     dialogSlideIndex,
