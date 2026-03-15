@@ -1,7 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useTransitionRouter } from "next-view-transitions";
 import { useCallback, useEffect, useRef } from "react";
+import { navigateSlideWithTransition } from "@/lib/slide-transition";
 
 interface RemoteReceiverProps {
   basePath: string;
@@ -33,7 +35,7 @@ export function RemoteReceiver({
   syncEndpoint,
   pollInterval = 1500,
 }: RemoteReceiverProps) {
-  const router = useRouter();
+  const router = useTransitionRouter();
   const pathname = usePathname();
   const initialized = useRef(false);
   const clientId = useRef<string | null>(null);
@@ -64,7 +66,12 @@ export function RemoteReceiver({
       const currentSlide = match ? Number(match[1]) : 1;
 
       if (remoteSlide !== currentSlide) {
-        router.push(`${basePath}/${remoteSlide}`);
+        const direction = remoteSlide >= currentSlide ? "forward" : "backward";
+        await navigateSlideWithTransition({
+          direction,
+          href: `${basePath}/${remoteSlide}`,
+          router,
+        });
       }
     } catch {
       // ignore poll errors

@@ -1,15 +1,13 @@
 "use client";
 
 import { X } from "@phosphor-icons/react";
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 interface SlideChromeProps {
   syncEndpoint?: string;
   total: number;
 }
-
-const SLIDE_INDEX_RE = /\/(\d+)$/;
 
 function getChannelName(syncEndpoint: string): string | null {
   try {
@@ -23,26 +21,18 @@ function getChannelName(syncEndpoint: string): string | null {
 
 export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
   const router = useRouter();
-  const pathname = usePathname();
-
-  const current = useMemo(() => {
-    const match = pathname.match(SLIDE_INDEX_RE);
-    return match ? Number(match[1]) - 1 : 0;
-  }, [pathname]);
 
   const handleEnd = useCallback(() => {
     if (syncEndpoint) {
-      // Signal "ended" to phone pollers via slide: 0
       fetch(syncEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slide: 0, total }),
       }).catch(() => undefined);
 
-      // Signal "ended" to broadcast (desktop) notes windows
-      const channelName = getChannelName(syncEndpoint);
-      if (channelName) {
-        const channel = new BroadcastChannel(channelName);
+      const endChannelName = getChannelName(syncEndpoint);
+      if (endChannelName) {
+        const channel = new BroadcastChannel(endChannelName);
         channel.postMessage({ kind: "ended" });
         channel.close();
       }
@@ -52,8 +42,14 @@ export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
 
   return (
     <>
-      {/* Top chrome — close button pinned to the right */}
-      <div className="fixed inset-x-0 top-0 z-60 flex h-11 items-center justify-end bg-background px-4">
+      {/* Slide frame */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-4 z-50 rounded-2xl border border-foreground/15 shadow-[0_0_0_1px_hsl(var(--background))_inset]"
+      />
+
+      {/* Close button */}
+      <div className="fixed top-6 right-6 z-60">
         <button
           aria-label="Exit presentation"
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -62,20 +58,6 @@ export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
         >
           <X size={16} weight="bold" />
         </button>
-      </div>
-
-      {/* Bottom chrome — dots centered */}
-      <div className="fixed inset-x-0 bottom-0 z-60 flex h-11 items-center justify-center gap-2 bg-background">
-        {Array.from({ length: total }).map((_, i) => (
-          <div
-            className={`rounded-full transition-all duration-300 ${
-              i === current
-                ? "h-1.5 w-6 bg-foreground/60"
-                : "h-1.5 w-1.5 bg-foreground/20"
-            }`}
-            key={`dot-${String(i)}`}
-          />
-        ))}
       </div>
     </>
   );

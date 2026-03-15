@@ -1,8 +1,16 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useTransitionRouter } from "next-view-transitions";
 import type { ReactNode } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DEFAULT_NAVIGATION_KEYBINDS,
+  loadNavigationKeybinds,
+  NAVIGATION_KEYBINDS_STORAGE_KEY,
+  normalizeNavigationKey,
+} from "@/lib/navigation-keybinds";
+import { navigateSlideWithTransition } from "@/lib/slide-transition";
 
 interface SlideDeckProps {
   basePath?: string;
@@ -24,8 +32,14 @@ export function SlideDeck({
   slides,
   syncEndpoint,
 }: SlideDeckProps) {
-  const router = useRouter();
+  const router = useTransitionRouter();
   const pathname = usePathname();
+  const projectedPageRef = useRef(1);
+  const isNavigatingRef = useRef(false);
+  const pendingTargetPageRef = useRef<number | null>(null);
+  const [navigationKeybinds, setNavigationKeybinds] = useState(
+    DEFAULT_NAVIGATION_KEYBINDS
+  );
 
   const extractDeckId = useCallback(() => {
     if (!syncEndpoint) {
@@ -52,6 +66,25 @@ export function SlideDeck({
     return match ? Number(match[1]) : 1;
   }, [pathname]);
 
+  useEffect(() => {
+    projectedPageRef.current = getCurrentPage();
+  }, [getCurrentPage]);
+
+  useEffect(() => {
+    setNavigationKeybinds(loadNavigationKeybinds());
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === NAVIGATION_KEYBINDS_STORAGE_KEY) {
+        setNavigationKeybinds(loadNavigationKeybinds());
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   const broadcastState = useCallback(
     (page: number) => {
       const channelName = getChannelName();
@@ -65,7 +98,6 @@ export function SlideDeck({
     [getChannelName, slides.length]
   );
 
-  // Publish initial state so the phone knows the total slide count immediately.
   useEffect(() => {
     if (!syncEndpoint) {
       return;
@@ -79,7 +111,7 @@ export function SlideDeck({
     }).catch(() => {
       // ignore sync errors
     });
-    // Only run once on mount — omit getCurrentPage/slides.length intentionally.
+    // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [broadcastState, syncEndpoint, getCurrentPage, slides.length]);
 
@@ -99,6 +131,74 @@ export function SlideDeck({
     return () => clearInterval(id);
   }, [broadcastState, getCurrentPage, syncEndpoint]);
 
+  const syncToServer = useCallback(
+    (page: number) => {
+      if (!syncEndpoint) {
+        return;
+      }
+      fetch(syncEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide: page, total: slides.length }),
+      }).catch(() => {
+        // ignore sync errors
+      });
+    },
+    [syncEndpoint, slides.length]
+  );
+
+  const navigateToPage = useCallback(
+    async (targetPage: number) => {
+      const boundedPage = Math.max(1, Math.min(targetPage, slides.length));
+      if (isNavigatingRef.current) {
+        if (boundedPage !== projectedPageRef.current) {
+          pendingTargetPageRef.current = boundedPage;
+        }
+        return;
+      }
+
+      const fromPage = projectedPageRef.current;
+      if (boundedPage === fromPage) {
+        return;
+      }
+
+      isNavigatingRef.current = true;
+      projectedPageRef.current = boundedPage;
+
+      try {
+        const direction = boundedPage > fromPage ? "forward" : "backward";
+        broadcastState(boundedPage);
+        await navigateSlideWithTransition({
+          direction,
+          href: `${basePath}/${boundedPage}`,
+          router,
+        });
+        syncToServer(boundedPage);
+      } finally {
+        isNavigatingRef.current = false;
+        const queuedTarget = pendingTargetPageRef.current;
+        pendingTargetPageRef.current = null;
+        if (
+          typeof queuedTarget === "number" &&
+          queuedTarget !== projectedPageRef.current
+        ) {
+          navigateToPage(queuedTarget).catch(() => {
+            // ignore queued navigation errors
+          });
+        }
+      }
+    },
+    [basePath, broadcastState, router, slides.length, syncToServer]
+  );
+
+  const navigateByDelta = useCallback(
+    async (delta: 1 | -1) => {
+      await navigateToPage(projectedPageRef.current + delta);
+    },
+    [navigateToPage]
+  );
+
+  // Broadcast channel — remote control (phone / notes window)
   useEffect(() => {
     const channelName = getChannelName();
     if (!channelName) {
@@ -129,11 +229,9 @@ export function SlideDeck({
         return;
       }
 
-      const currentPage = getCurrentPage();
-      const targetPage = Math.max(1, Math.min(message.slide, slides.length));
-      if (targetPage !== currentPage) {
-        router.push(`${basePath}/${targetPage}`);
-      }
+      navigateToPage(message.slide).catch(() => {
+        // ignore remote control navigation errors
+      });
     };
 
     channel.addEventListener("message", onMessage);
@@ -141,27 +239,15 @@ export function SlideDeck({
       channel.removeEventListener("message", onMessage);
       channel.close();
     };
-  }, [basePath, getChannelName, getCurrentPage, router, slides.length]);
+  }, [getChannelName, getCurrentPage, navigateToPage, slides.length]);
 
-  const navigate = useCallback(
-    (page: number) => {
-      router.push(`${basePath}/${page}`);
-      broadcastState(page);
-      if (syncEndpoint) {
-        fetch(syncEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slide: page, total: slides.length }),
-        }).catch(() => {
-          // ignore sync errors
-        });
-      }
-    },
-    [basePath, broadcastState, router, slides.length, syncEndpoint]
-  );
-
+  // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+
       const target = e.target as HTMLElement;
       if (
         INTERACTIVE_TAGS.has(target.tagName) ||
@@ -171,26 +257,25 @@ export function SlideDeck({
         return;
       }
 
-      const current = getCurrentPage();
-      const total = slides.length;
-
-      if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ") {
-        if (current < total) {
-          e.preventDefault();
-          navigate(current + 1);
-        }
-      } else if (
-        (e.key === "ArrowLeft" || e.key === "ArrowUp") &&
-        current > 1
-      ) {
+      const normalizedKey = normalizeNavigationKey(e.key);
+      if (normalizedKey === navigationKeybinds.nextKey) {
         e.preventDefault();
-        navigate(current - 1);
+        navigateByDelta(1).catch(() => {
+          // ignore keyboard navigation errors
+        });
+      } else if (normalizedKey === navigationKeybinds.prevKey) {
+        e.preventDefault();
+        navigateByDelta(-1).catch(() => {
+          // ignore keyboard navigation errors
+        });
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [getCurrentPage, navigate, slides.length]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navigateByDelta, navigationKeybinds]);
 
   return <>{children}</>;
 }

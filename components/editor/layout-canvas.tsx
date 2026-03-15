@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareOut, Copy, Plus, QrCode, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, Copy, QrCode, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 import { MDXRemote } from "next-mdx-remote";
@@ -12,6 +12,7 @@ import {
   resolveMdxComponents,
   type UploadedDeckWidget,
 } from "@/components/mdx/component-registry";
+import { Badge } from "@/components/ui/badge";
 import {
   Empty,
   EmptyDescription,
@@ -652,7 +653,7 @@ export function LayoutCanvas({
 
   // ── Drag from sidebar ────────────────────────────────────────────────────
   function handleSidebarDragStart(
-    e: React.DragEvent<HTMLDivElement>,
+    e: React.DragEvent<HTMLElement>,
     sectionId: string
   ) {
     e.dataTransfer.setData("text/plain", sectionId);
@@ -708,41 +709,43 @@ export function LayoutCanvas({
       {/* ── Sections sidebar ─────────────────────────────────────────────── */}
       {showSectionsSidebar && (
         <aside className="flex w-64 shrink-0 flex-col border-r bg-background">
-          <div className="border-b px-3 py-2.5">
-            <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
-              Sections
-            </p>
+          <div className="border-b px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
+                Sections
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-y-auto p-3">
+          <div className="no-scrollbar flex flex-col gap-1.5 overflow-y-auto p-3">
             {noSections && (
               <p className="px-1 text-[11px] text-muted-foreground">
                 Write <strong># to ####</strong> headings in your markdown to
                 see sections here.
               </p>
             )}
-            {sections.map((section) => (
-              // biome-ignore lint/a11y/noStaticElementInteractions: draggable cards are intentionally pointer-first.
-              // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drag interactions are mouse-driven in editor mode.
-              <div
+            {sections.map((section, index) => (
+              <button
                 className="cursor-grab select-none rounded-md border bg-card p-2.5 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing active:opacity-70"
                 draggable
                 key={section.id}
+                onClick={() => insertSection(section.id)}
                 onDragStart={(e) => handleSidebarDragStart(e, section.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    insertSection(section.id);
+                  }
+                }}
+                type="button"
               >
                 <div className="mb-1 flex items-center gap-2">
+                  <Badge className="h-4 min-w-4 bg-muted px-1 font-semibold text-[9px] text-muted-foreground">
+                    {index + 1}
+                  </Badge>
                   <span className="min-w-0 flex-1 truncate font-semibold text-xs">
                     {section.heading}
                   </span>
-                  <button
-                    aria-label="Add to canvas"
-                    className="flex shrink-0 items-center gap-1 rounded bg-primary px-2 py-0.5 font-medium text-[10px] text-primary-foreground hover:bg-primary/90 active:scale-95"
-                    onClick={() => insertSection(section.id)}
-                    type="button"
-                  >
-                    <Plus size={10} weight="bold" />
-                    Add
-                  </button>
                 </div>
                 <p className="line-clamp-2 text-[9px] text-muted-foreground leading-relaxed">
                   {section.content
@@ -750,7 +753,7 @@ export function LayoutCanvas({
                     .trim()
                     .slice(0, 100)}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </aside>
@@ -759,7 +762,7 @@ export function LayoutCanvas({
       {/* ── Canvas (16:9 preview, 1-to-1 with presentation) ─────────── */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Toolbar */}
-        <div className="flex shrink-0 items-center gap-2 border-b bg-background px-3 py-1.5 text-[10px] text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.75 text-[10px] text-muted-foreground">
           <span className="font-medium">Grid</span>
           <div className="flex items-center gap-1">
             <button
@@ -1001,7 +1004,7 @@ export function LayoutCanvas({
                     <EmptyHeader>
                       <EmptyTitle>Canvas is empty</EmptyTitle>
                       <EmptyDescription>
-                        Drag a section here or click Add
+                        Drag or click a section to add it here
                       </EmptyDescription>
                     </EmptyHeader>
                   </Empty>

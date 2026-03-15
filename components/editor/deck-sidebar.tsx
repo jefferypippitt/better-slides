@@ -11,7 +11,7 @@ import {
 import { EmojiPicker } from "frimousse";
 import Link from "next/link";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -23,26 +23,91 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient, signOut as authSignOut } from "@/lib/auth-client";
 import type { CanvasBox, Deck } from "@/lib/decks";
+import {
+  canUseAsNavigationKey,
+  DEFAULT_NAVIGATION_KEYBINDS,
+  formatNavigationKeyLabel,
+  loadNavigationKeybinds,
+  type NavigationKeybinds,
+  normalizeNavigationKey,
+  saveNavigationKeybinds,
+} from "@/lib/navigation-keybinds";
 
 interface DeckSidebarProps {
   activeDeckId: string | null;
   decks: Deck[];
   onAddElement?: (element: Omit<CanvasBox, "id">) => void;
-  onDeleteDeck: (id: string) => void;
+  onDeleteAllDecks?: () => void | Promise<void>;
+  onDeleteDeck: (id: string) => void | Promise<void>;
   onNewDeck: () => void;
   onRenameDeck: (id: string, newTitle: string) => void;
   onSelectDeck: (id: string) => void;
   showElementActions?: boolean;
+}
+
+type KeybindDialogTarget = "nextKey" | "prevKey";
+
+function getCurrentTargetKey(
+  target: KeybindDialogTarget | null,
+  keybinds: NavigationKeybinds
+): string | null {
+  if (target === "nextKey") {
+    return keybinds.nextKey;
+  }
+  if (target === "prevKey") {
+    return keybinds.prevKey;
+  }
+  return null;
+}
+
+function hasNavigationKeyConflict(
+  target: KeybindDialogTarget | null,
+  pendingKey: string | null,
+  keybinds: NavigationKeybinds
+): boolean {
+  if (!pendingKey) {
+    return false;
+  }
+  if (target === "nextKey") {
+    return pendingKey === keybinds.prevKey;
+  }
+  if (target === "prevKey") {
+    return pendingKey === keybinds.nextKey;
+  }
+  return false;
+}
+
+function withUpdatedNavigationKey(
+  target: KeybindDialogTarget,
+  pendingKey: string,
+  keybinds: NavigationKeybinds
+): NavigationKeybinds {
+  if (target === "nextKey") {
+    return {
+      ...keybinds,
+      nextKey: pendingKey,
+    };
+  }
+
+  return {
+    ...keybinds,
+    prevKey: pendingKey,
+  };
 }
 
 function EmojiCategoryHeader({
@@ -93,6 +158,7 @@ export function DeckSidebar({
   decks,
   activeDeckId,
   onAddElement,
+  onDeleteAllDecks,
   onSelectDeck,
   onNewDeck,
   onDeleteDeck,
@@ -100,6 +166,9 @@ export function DeckSidebar({
   showElementActions = false,
 }: DeckSidebarProps) {
   const [deleteTarget, setDeleteTarget] = useState<Deck | null>(null);
+  const [deleteAllDecksDialogOpen, setDeleteAllDecksDialogOpen] =
+    useState(false);
+  const [deletingAllDecks, setDeletingAllDecks] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Deck | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [separatorDialogOpen, setSeparatorDialogOpen] = useState(false);
@@ -117,6 +186,17 @@ export function DeckSidebar({
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(
     null
   );
+  const [navigationKeybinds, setNavigationKeybinds] =
+    useState<NavigationKeybinds>(DEFAULT_NAVIGATION_KEYBINDS);
+  const [keybindDialogOpen, setKeybindDialogOpen] = useState(false);
+  const [keybindDialogTarget, setKeybindDialogTarget] =
+    useState<KeybindDialogTarget | null>(null);
+  const [pendingKeybindValue, setPendingKeybindValue] = useState<string | null>(
+    null
+  );
+  const [keybindDialogError, setKeybindDialogError] = useState<string | null>(
+    null
+  );
   const [sessionUser, setSessionUser] = useState<{
     email?: string;
     name?: string;
@@ -132,6 +212,109 @@ export function DeckSidebar({
         setSessionUser(null);
       });
   }, []);
+
+  useEffect(() => {
+    setNavigationKeybinds(loadNavigationKeybinds());
+  }, []);
+
+  const updateNavigationKeybinds = useCallback((next: NavigationKeybinds) => {
+    setNavigationKeybinds(next);
+    saveNavigationKeybinds(next);
+  }, []);
+
+  useEffect(() => {
+    if (!(keybindDialogOpen && keybindDialogTarget)) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape") {
+        setKeybindDialogOpen(false);
+        setKeybindDialogTarget(null);
+        setPendingKeybindValue(null);
+        setKeybindDialogError(null);
+        return;
+      }
+
+      if (!canUseAsNavigationKey(event.key)) {
+        setKeybindDialogError("That key cannot be used for navigation.");
+        return;
+      }
+
+      const nextKey = normalizeNavigationKey(event.key);
+      setPendingKeybindValue(nextKey);
+      if (
+        (keybindDialogTarget === "nextKey" &&
+          nextKey === navigationKeybinds.prevKey) ||
+        (keybindDialogTarget === "prevKey" &&
+          nextKey === navigationKeybinds.nextKey)
+      ) {
+        setKeybindDialogError("Next and previous must be different keys.");
+        return;
+      }
+      setKeybindDialogError(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [keybindDialogOpen, keybindDialogTarget, navigationKeybinds]);
+
+  const currentTargetKey = getCurrentTargetKey(
+    keybindDialogTarget,
+    navigationKeybinds
+  );
+  const hasPendingConflict = hasNavigationKeyConflict(
+    keybindDialogTarget,
+    pendingKeybindValue,
+    navigationKeybinds
+  );
+
+  const canSavePendingKeybind = Boolean(
+    keybindDialogTarget &&
+      pendingKeybindValue &&
+      currentTargetKey &&
+      pendingKeybindValue !== currentTargetKey &&
+      !hasPendingConflict &&
+      !keybindDialogError
+  );
+
+  function savePendingKeybind() {
+    if (!(keybindDialogTarget && pendingKeybindValue && currentTargetKey)) {
+      return;
+    }
+    if (pendingKeybindValue === currentTargetKey) {
+      setKeybindDialogError("Choose a different key before saving.");
+      return;
+    }
+    if (
+      hasNavigationKeyConflict(
+        keybindDialogTarget,
+        pendingKeybindValue,
+        navigationKeybinds
+      )
+    ) {
+      setKeybindDialogError("Next and previous must be different keys.");
+      return;
+    }
+
+    updateNavigationKeybinds(
+      withUpdatedNavigationKey(
+        keybindDialogTarget,
+        pendingKeybindValue,
+        navigationKeybinds
+      )
+    );
+
+    setKeybindDialogOpen(false);
+    setKeybindDialogTarget(null);
+    setPendingKeybindValue(null);
+    setKeybindDialogError(null);
+  }
 
   const userName = sessionUser?.name?.trim() || "Signed in";
   const userEmail = sessionUser?.email?.trim();
@@ -184,32 +367,43 @@ export function DeckSidebar({
     setRenameTarget(null);
   }
 
+  async function handleDeleteAllDecks() {
+    if (!onDeleteAllDecks || deletingAllDecks || decks.length === 0) {
+      return;
+    }
+    setDeletingAllDecks(true);
+    try {
+      await onDeleteAllDecks();
+      setDeleteAllDecksDialogOpen(false);
+    } finally {
+      setDeletingAllDecks(false);
+    }
+  }
+
   return (
     <>
       <aside className="flex h-full w-48 shrink-0 flex-col border-r bg-muted/30">
-        <div className="border-b px-3 py-2.5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
-                Decks
-              </p>
-            </div>
+        <div className="border-b px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
+              Decks
+            </p>
             <button
               aria-label="New deck"
-              className="mt-0.5 text-muted-foreground hover:text-foreground"
+              className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
               onClick={onNewDeck}
               type="button"
             >
-              <Plus size={16} />
+              <Plus size={12} />
             </button>
           </div>
         </div>
 
-        <ul className="flex-1 overflow-auto py-1">
+        <ul className="no-scrollbar flex-1 overflow-auto py-1">
           {decks.map((deck) => (
-            <li className="group flex items-center px-2" key={deck.id}>
+            <li className="group flex items-center gap-1 px-2" key={deck.id}>
               <button
-                className={`flex-1 truncate rounded px-2 py-1 text-left text-sm ${
+                className={`flex-1 truncate rounded border border-transparent px-2 py-1 text-left text-sm transition-colors ${
                   deck.id === activeDeckId
                     ? "bg-accent text-accent-foreground"
                     : "hover:bg-accent/50"
@@ -342,6 +536,52 @@ export function DeckSidebar({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+            <div className="mt-1 rounded border bg-background">
+              <DropdownMenu>
+                <div className="flex items-start justify-between gap-2 px-2 py-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-xs">
+                      Navigation Keybinds
+                    </p>
+                  </div>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      aria-label="Navigation key options"
+                      className="mt-0.5 rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                      type="button"
+                    >
+                      <DotsThreeVerticalIcon size={14} />
+                    </button>
+                  </DropdownMenuTrigger>
+                </div>
+                <DropdownMenuContent align="end" side="top" sideOffset={6}>
+                  <DropdownMenuLabel className="text-[11px]">
+                    Update Keybinds
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setKeybindDialogTarget("prevKey");
+                      setPendingKeybindValue(navigationKeybinds.prevKey);
+                      setKeybindDialogError(null);
+                      setKeybindDialogOpen(true);
+                    }}
+                  >
+                    Set Previous Key
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setKeybindDialogTarget("nextKey");
+                      setPendingKeybindValue(navigationKeybinds.nextKey);
+                      setKeybindDialogError(null);
+                      setKeybindDialogOpen(true);
+                    }}
+                  >
+                    Set Next Key
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           <div className="-mx-3 mt-2 border-t px-3 pt-2">
             <p className="font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
@@ -381,29 +621,128 @@ export function DeckSidebar({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={signingOut}
-                    onSelect={() => {
-                      handleSignOut();
-                    }}
-                    variant="destructive"
-                  >
-                    <SignOut size={12} />
-                    {signingOut ? "Signing out..." : "Sign out"}
-                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Decks</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem
+                        disabled={decks.length === 0 || deletingAllDecks}
+                        onSelect={() => {
+                          setDeleteAllDecksDialogOpen(true);
+                        }}
+                        variant="destructive"
+                      >
+                        Delete all
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => setDeleteAccountDialogOpen(true)}
-                    variant="destructive"
-                  >
-                    Delete account
-                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Settings</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem
+                        disabled={signingOut}
+                        onSelect={() => {
+                          handleSignOut();
+                        }}
+                        variant="destructive"
+                      >
+                        <SignOut size={12} />
+                        {signingOut ? "Signing out..." : "Sign out"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => setDeleteAccountDialogOpen(true)}
+                        variant="destructive"
+                      >
+                        Delete account
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </div>
       </aside>
+
+      {/* Separator dialog */}
+      <AlertDialog
+        onOpenChange={(open) => {
+          setKeybindDialogOpen(open);
+          if (!open) {
+            setKeybindDialogTarget(null);
+            setPendingKeybindValue(null);
+            setKeybindDialogError(null);
+          }
+        }}
+        open={keybindDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Set {keybindDialogTarget === "prevKey" ? "previous" : "next"} key
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Current keybinds are shown below.
+            </AlertDialogDescription>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Badge variant="default">
+                Prev: {formatNavigationKeyLabel(navigationKeybinds.prevKey)}
+              </Badge>
+              <Badge variant="outline">
+                Next: {formatNavigationKeyLabel(navigationKeybinds.nextKey)}
+              </Badge>
+            </div>
+            <div className="pt-3">
+              <p className="text-[12px] text-muted-foreground">
+                Press any key to set a new value:
+              </p>
+            </div>
+            <div className="pt-1">
+              <p className="text-[12px] text-muted-foreground">New key</p>
+              <Badge
+                className="mt-1"
+                variant={pendingKeybindValue ? "secondary" : "secondary"}
+              >
+                {pendingKeybindValue
+                  ? formatNavigationKeyLabel(pendingKeybindValue)
+                  : "Press a key..."}
+              </Badge>
+            </div>
+            {keybindDialogError && (
+              <p className="pt-1 text-[11px] text-destructive">
+                {keybindDialogError}
+              </p>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-between">
+            <Button
+              onClick={() => {
+                updateNavigationKeybinds(DEFAULT_NAVIGATION_KEYBINDS);
+                if (keybindDialogTarget === "prevKey") {
+                  setPendingKeybindValue(DEFAULT_NAVIGATION_KEYBINDS.prevKey);
+                } else if (keybindDialogTarget === "nextKey") {
+                  setPendingKeybindValue(DEFAULT_NAVIGATION_KEYBINDS.nextKey);
+                }
+                setKeybindDialogError(null);
+              }}
+              type="button"
+              variant="outline"
+            >
+              Reset
+            </Button>
+            <div className="flex items-center gap-2">
+              <AlertDialogCancel>Close</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!canSavePendingKeybind}
+                onClick={savePendingKeybind}
+              >
+                Save
+              </AlertDialogAction>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Separator dialog */}
       <AlertDialog
@@ -672,6 +1011,36 @@ export function DeckSidebar({
       </AlertDialog>
 
       {/* Delete confirmation */}
+      <AlertDialog
+        onOpenChange={setDeleteAllDecksDialogOpen}
+        open={deleteAllDecksDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all decks?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes all decks in your workspace. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAllDecks}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deletingAllDecks || decks.length === 0}
+              onClick={async (event) => {
+                event.preventDefault();
+                await handleDeleteAllDecks();
+              }}
+              variant="destructive"
+            >
+              {deletingAllDecks ? "Deleting..." : "Delete all"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         open={deleteTarget !== null}

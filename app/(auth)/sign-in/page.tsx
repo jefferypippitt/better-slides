@@ -14,7 +14,13 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <Suspense fallback={<div className="text-muted-foreground text-sm">Loading sign-in form...</div>}>
+        <Suspense
+          fallback={
+            <div className="text-muted-foreground text-sm">
+              Loading sign-in form...
+            </div>
+          }
+        >
           <SignInForm />
         </Suspense>
 

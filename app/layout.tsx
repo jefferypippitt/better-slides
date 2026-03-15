@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { ViewTransitions } from "next-view-transitions";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -22,22 +23,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      className={cn(
-        "antialiased",
-        fontMono.variable,
-        "font-sans",
-        fontSans.variable
-      )}
-      lang="en"
-      suppressHydrationWarning
-    >
-      <body>
-        <ThemeProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster />
-        </ThemeProvider>
-      </body>
-    </html>
+    <ViewTransitions>
+      <html
+        className={cn(
+          "antialiased",
+          fontMono.variable,
+          "font-sans",
+          fontSans.variable
+        )}
+        lang="en"
+        suppressHydrationWarning
+      >
+        <body>
+          <ThemeProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster />
+          </ThemeProvider>
+        </body>
+      </html>
+    </ViewTransitions>
   );
 }

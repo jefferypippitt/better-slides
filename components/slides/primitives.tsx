@@ -177,10 +177,7 @@ export function SlideCode({ children, title, className }: SlideCodeProps) {
 
   return (
     <div
-      className={cn(
-        "slide-code-wrapper w-full min-w-0 max-w-2xl",
-        className
-      )}
+      className={cn("slide-code-wrapper w-full min-w-0 max-w-2xl", className)}
     >
       {title && (
         <div

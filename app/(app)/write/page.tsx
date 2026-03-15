@@ -3,6 +3,7 @@
 import {
   ArrowSquareOut,
   Copy,
+  Microphone,
   Plus,
   Trash,
   UploadSimple,
@@ -35,6 +36,7 @@ import {
   InputGroupText,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
 import type { Deck, SlideLayout } from "@/lib/decks";
 import { DEFAULT_DECK_MDX, DEFAULT_DECK_TITLE } from "@/lib/default-deck";
 import { parseMarkdownSections } from "@/lib/sections";
@@ -56,9 +58,51 @@ const MdxEditor = dynamic(
 
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 const FRONT_MATTER_RE = /^---[\s\S]*?---\n?/;
+const TRAILING_WHITESPACE_RE = /\s$/;
 const TITLE_MAX_LENGTH = 80;
 const NOTES_MAX_LENGTH = 1500;
 const MDX_MAX_BYTES = 500_000;
+
+type SpeechRecognitionResultLike = ArrayLike<{ transcript: string }> & {
+  isFinal?: boolean;
+};
+
+type SpeechRecognitionEventLike = Event & {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionErrorEventLike = Event & {
+  error?: string;
+};
+
+interface SpeechRecognitionInstanceLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructorLike = new () => SpeechRecognitionInstanceLike;
+
+function getSpeechRecognitionCtor(): SpeechRecognitionConstructorLike | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const windowWithSpeech = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructorLike;
+    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+  };
+  return (
+    windowWithSpeech.SpeechRecognition ??
+    windowWithSpeech.webkitSpeechRecognition ??
+    null
+  );
+}
 
 function getFileExt(name: string): string {
   const dot = name.lastIndexOf(".");
@@ -104,10 +148,16 @@ export default function WritePage() {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notesSlideIndex, setNotesSlideIndex] = useState<number | null>(null);
   const [copiedNotes, setCopiedNotes] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [dictatingNotes, setDictatingNotes] = useState(false);
+  const [notesSpeechError, setNotesSpeechError] = useState<string | null>(null);
 
   const initialLoadDone = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const widgetFileInputRef = useRef<HTMLInputElement>(null);
+  const notesRecognitionRef = useRef<SpeechRecognitionInstanceLike | null>(
+    null
+  );
 
   useEffect(() => {
     if (initialLoadDone.current) {
@@ -136,6 +186,10 @@ export default function WritePage() {
       .catch((_err: unknown) => {
         // ignore initial load errors
       });
+  }, []);
+
+  useEffect(() => {
+    setSpeechSupported(getSpeechRecognitionCtor() !== null);
   }, []);
 
   function loadDeck(deck: Deck) {
@@ -194,6 +248,22 @@ export default function WritePage() {
       }
       return remaining;
     });
+  }
+
+  async function handleDeleteAllDecks() {
+    const deckIds = decks.map((deck) => deck.id);
+    if (deckIds.length === 0) {
+      return;
+    }
+
+    await Promise.all(deckIds.map((id) => deleteDeckAction(id)));
+    setDecks([]);
+    setActiveDeckId(null);
+    setMdx(DEFAULT_DECK_MDX);
+    setTitle(DEFAULT_DECK_TITLE);
+    setSlides([]);
+    setDeckWidgets([]);
+    setActiveSlideIndex(0);
   }
 
   const handleSave = useCallback(
@@ -457,7 +527,38 @@ export default function WritePage() {
     );
   }
 
+  const appendSpeakerNotesForSlide = useCallback(
+    (index: number, transcript: string) => {
+      const cleanedTranscript = transcript.replace(/\s+/g, " ").trim();
+      if (!cleanedTranscript) {
+        return;
+      }
+      setSlides((prev) =>
+        prev.map((slide, i) => {
+          if (i !== index) {
+            return slide;
+          }
+          const currentNotes = slide.speakerNotes ?? "";
+          const spacer =
+            currentNotes.length === 0 ||
+            TRAILING_WHITESPACE_RE.test(currentNotes)
+              ? ""
+              : " ";
+          const nextNotes =
+            `${currentNotes}${spacer}${cleanedTranscript}`.slice(
+              0,
+              NOTES_MAX_LENGTH
+            );
+          return { ...slide, speakerNotes: nextNotes };
+        })
+      );
+    },
+    []
+  );
+
   function openNotesDialog(index: number) {
+    stopNotesDictation();
+    setNotesSpeechError(null);
     setActiveSlideIndex(index);
     setNotesSlideIndex(index);
     setCopiedNotes(false);
@@ -477,6 +578,93 @@ export default function WritePage() {
       setCopiedNotes(false);
     }
   }
+
+  const stopNotesDictation = useCallback(() => {
+    notesRecognitionRef.current?.stop();
+    notesRecognitionRef.current = null;
+    setDictatingNotes(false);
+  }, []);
+
+  const startNotesDictation = useCallback(() => {
+    if (notesSlideIndex === null) {
+      return;
+    }
+    const SpeechRecognitionCtor = getSpeechRecognitionCtor();
+    if (!SpeechRecognitionCtor) {
+      setNotesSpeechError(
+        "Speech recognition is not supported in this browser. Use Chrome or Edge."
+      );
+      return;
+    }
+    setNotesSpeechError(null);
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = navigator.language || "en-US";
+
+    const targetSlideIndex = notesSlideIndex;
+
+    recognition.onresult = (event) => {
+      let transcriptChunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (!result?.isFinal) {
+          continue;
+        }
+        const transcript = result[0]?.transcript?.trim();
+        if (transcript) {
+          transcriptChunk = `${transcriptChunk} ${transcript}`;
+        }
+      }
+      if (transcriptChunk.trim().length > 0) {
+        appendSpeakerNotesForSlide(targetSlideIndex, transcriptChunk);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed") {
+        setNotesSpeechError(
+          "Microphone access was denied. Enable mic permissions and try again."
+        );
+      } else if (event.error === "audio-capture") {
+        setNotesSpeechError("No microphone was detected.");
+      } else {
+        setNotesSpeechError("Speech recognition failed. Try again.");
+      }
+    };
+
+    recognition.onend = () => {
+      notesRecognitionRef.current = null;
+      setDictatingNotes(false);
+    };
+
+    notesRecognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setDictatingNotes(true);
+    } catch {
+      notesRecognitionRef.current = null;
+      setDictatingNotes(false);
+      setNotesSpeechError("Unable to start speech recognition.");
+    }
+  }, [appendSpeakerNotesForSlide, notesSlideIndex]);
+
+  const toggleNotesDictation = useCallback(() => {
+    if (dictatingNotes) {
+      stopNotesDictation();
+      return;
+    }
+    startNotesDictation();
+  }, [dictatingNotes, startNotesDictation, stopNotesDictation]);
+
+  useEffect(() => {
+    if (notesDialogOpen) {
+      return;
+    }
+    stopNotesDictation();
+    setNotesSpeechError(null);
+  }, [notesDialogOpen, stopNotesDictation]);
 
   const activeSlide = slides[activeSlideIndex];
   const dialogSlideIndex = notesSlideIndex ?? activeSlideIndex;
@@ -566,6 +754,7 @@ export default function WritePage() {
           <DeckSidebar
             activeDeckId={activeDeckId}
             decks={decks}
+            onDeleteAllDecks={handleDeleteAllDecks}
             onDeleteDeck={handleDeleteDeck}
             onNewDeck={handleNewDeck}
             onRenameDeck={handleRenameDeck}
@@ -574,7 +763,7 @@ export default function WritePage() {
           />
           <div className="flex min-h-0 flex-1 flex-col">
             {/* Editor toolbar */}
-            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
+            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-0.75">
               {/* Text / Outline toggle */}
               <div className="flex items-center rounded border text-[11px]">
                 <button
@@ -646,12 +835,6 @@ export default function WritePage() {
                   </button>
                 </>
               )}
-
-              {editorSubView === "text" && (
-                <span className="ml-auto text-[10px] text-muted-foreground/50">
-                  Deck content: MD, MDX · React widgets: upload in Outline
-                </span>
-              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -675,6 +858,7 @@ export default function WritePage() {
             activeDeckId={activeDeckId}
             decks={decks}
             onAddElement={handleAddElement}
+            onDeleteAllDecks={handleDeleteAllDecks}
             onDeleteDeck={handleDeleteDeck}
             onNewDeck={handleNewDeck}
             onRenameDeck={handleRenameDeck}
@@ -684,12 +868,14 @@ export default function WritePage() {
 
           {/* Slides panel */}
           <aside className="flex w-36 shrink-0 flex-col border-r bg-background">
-            <div className="border-b px-3 py-2.5">
-              <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
-                Slides
-              </p>
+            <div className="border-b px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
+                  Slides
+                </p>
+              </div>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+            <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
               {slides.length === 0 && (
                 <p className="text-[10px] text-muted-foreground">
                   No slides yet. Click + to add one.
@@ -736,13 +922,14 @@ export default function WritePage() {
                     type="button"
                   >
                     <Badge
-                      className={`w-full justify-center py-1 text-[10px] ${
+                      className={`w-full justify-center gap-1 py-1 text-[10px] ${
                         slide.speakerNotes?.trim()
-                          ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-destructive"
                       }`}
+                      variant="outline"
                     >
-                      {slide.speakerNotes?.trim() ? "Notes on" : "No notes"}
+                      <span>Notes</span>
                     </Badge>
                   </button>
                 </div>
@@ -827,21 +1014,43 @@ export default function WritePage() {
             <InputGroup className="h-auto">
               <InputGroupAddon align="block-start" className="border-b">
                 <InputGroupButton
+                  aria-label="Clear notes"
                   className="ml-auto"
                   onClick={() =>
                     handleSpeakerNotesChangeForSlide(dialogSlideIndex, "")
                   }
                   size="icon-xs"
-                  variant="ghost"
+                  title="Clear notes"
+                  variant="outline"
                 >
                   <X size={12} />
                 </InputGroupButton>
                 <InputGroupButton
+                  aria-label="Copy notes"
                   onClick={copyNotesFromDialog}
                   size="icon-xs"
-                  variant="ghost"
+                  title="Copy notes"
+                  variant="outline"
                 >
                   <Copy size={12} />
+                </InputGroupButton>
+                <InputGroupButton
+                  aria-label={
+                    dictatingNotes
+                      ? "Stop speech dictation"
+                      : "Start speech dictation"
+                  }
+                  disabled={!speechSupported}
+                  onClick={toggleNotesDictation}
+                  size="icon-xs"
+                  title={dictatingNotes ? "Stop dictation" : "Start dictation"}
+                  variant="outline"
+                >
+                  {dictatingNotes ? (
+                    <Spinner className="size-3.5" />
+                  ) : (
+                    <Microphone size={12} />
+                  )}
                 </InputGroupButton>
               </InputGroupAddon>
               <InputGroupTextarea
@@ -857,6 +1066,11 @@ export default function WritePage() {
                 value={dialogSlide.speakerNotes ?? ""}
               />
               <InputGroupAddon align="block-end" className="border-t">
+                {notesSpeechError && (
+                  <InputGroupText className="text-destructive">
+                    {notesSpeechError}
+                  </InputGroupText>
+                )}
                 <InputGroupText
                   className={
                     !copiedNotes &&

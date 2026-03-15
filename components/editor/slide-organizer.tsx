@@ -131,7 +131,7 @@ export function SlideOrganizer({
   return (
     <div className="flex h-full overflow-hidden">
       {/* Section nodes */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="no-scrollbar flex-1 overflow-y-auto p-6">
         <div className="mx-auto flex max-w-2xl flex-col gap-3">
           {sections.map((section, index) => {
             const isSelected = selectedSectionId === section.id;

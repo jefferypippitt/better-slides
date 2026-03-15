@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-
 import { MDXRemote } from "next-mdx-remote/rsc";
 import {
   getMdxComponentByName,
@@ -16,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 const Slide = mdxComponents.Slide;
 const HEADING_PREFIX_RE = /^#{1,6}\s+/;
+const PRESENT_FRAME_CLASSES =
+  "slide-view @container absolute inset-4 overflow-hidden rounded-2xl bg-background";
 
 interface RenderCanvasBoxArgs {
   box: NonNullable<
@@ -346,13 +347,11 @@ export default async function SlidePage({ params }: Props) {
 
     if (renderableBoxes.length === 0) {
       // Empty canvas slide — render a blank slide
-      return (
-        <div className="absolute inset-x-0 top-11 bottom-11 bg-background" />
-      );
+      return <div className={PRESENT_FRAME_CLASSES} />;
     }
 
     return (
-      <div className="@container absolute inset-x-0 top-11 bottom-11 overflow-hidden bg-background">
+      <div className={PRESENT_FRAME_CLASSES}>
         {renderableBoxes.map((box) =>
           renderCanvasBox({
             box,
@@ -378,8 +377,10 @@ export default async function SlidePage({ params }: Props) {
   const source = sections[slideIndex].content;
 
   return (
-    <Slide>
-      <MDXRemote components={resolvedMdxComponents} source={source} />
-    </Slide>
+    <div className={PRESENT_FRAME_CLASSES}>
+      <Slide className="h-full w-full">
+        <MDXRemote components={resolvedMdxComponents} source={source} />
+      </Slide>
+    </div>
   );
 }

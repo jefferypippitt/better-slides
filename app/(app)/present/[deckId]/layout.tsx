@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { RemoteReceiver } from "@/components/present/remote-receiver";
 import { SlideChrome } from "@/components/present/slide-chrome";
 import { SlideDeck } from "@/components/slides/slide-deck";
 import { getSpeakerNotesForDeck } from "@/lib/speaker-notes";
@@ -40,10 +39,6 @@ export default async function PresentLayout({ children, params }: Props) {
         {children}
       </SlideDeck>
       <SlideChrome syncEndpoint={syncEndpoint} total={slideCount} />
-      <RemoteReceiver
-        basePath={`/present/${deckId}`}
-        syncEndpoint={syncEndpoint}
-      />
     </>
   );
 }
