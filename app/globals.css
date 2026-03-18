@@ -67,6 +67,7 @@
   --shadow-offset-x: 0px;
   --shadow-offset-y: 0.125rem;
   --letter-spacing: 0em;
+  --auth-card-height: 28rem;
 }
 
 .dark {
@@ -217,6 +218,14 @@ html:has(.landing-section) {
   scrollbar-width: none;
 }
 html:has(.landing-section)::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar on legal pages without JS */
+html:has(.legal-section) {
+  scrollbar-width: none;
+}
+html:has(.legal-section)::-webkit-scrollbar {
   display: none;
 }
 

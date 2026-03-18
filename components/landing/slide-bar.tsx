@@ -7,7 +7,7 @@ interface SlideBarProps {
   right: ReactNode;
 }
 
-export function SlideBar({
+export default function SlideBar({
   left,
   center = false,
   right,
@@ -15,20 +15,20 @@ export function SlideBar({
 }: SlideBarProps) {
   return (
     <div
-      className={`flex h-12 shrink-0 items-center border-border px-8 ${
+      className={`flex h-12 shrink-0 items-center border-border px-4 sm:px-8 ${
         center ? "justify-center" : "justify-between"
       } ${position === "top" ? "border-b" : "border-t"}`}
     >
       {center ? (
-        <span className="font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
+        <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
           {right}
         </span>
       ) : (
         <>
-          <span className="font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
+          <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
             {left}
           </span>
-          <span className="font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
+          <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
             {right}
           </span>
         </>

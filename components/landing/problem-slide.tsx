@@ -1,4 +1,4 @@
-import { SlideBar } from "./slide-bar";
+import SlideBar from "./slide-bar";
 
 const PAIN_POINTS = [
   {
@@ -33,41 +33,41 @@ const PAIN_POINTS = [
   },
 ] as const;
 
-export function ProblemSlide() {
+export default function ProblemSlide() {
   return (
     <section className="landing-section sticky top-0 z-2 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="02 / 07" right="THE PROBLEM" />
 
-      <div className="flex flex-1 flex-col lg:flex-row">
-        {/* Left: big title */}
-        <div className="flex flex-1 items-center justify-center border-border border-b p-12 lg:border-r lg:border-b-0">
-          <h2 className="font-bold text-[clamp(2.2rem,5.5vw,4.5rem)] leading-[1.1] tracking-tight">
-            Creating presentations
+      <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
+        <section className="flex flex-1 items-center justify-center p-6 sm:p-8 lg:justify-end lg:p-12 lg:pr-8">
+          <h2 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-[1.06] tracking-tight">
+            Creating presentations <span className="opacity-35">is easy.</span>
             <br />
-            <span className="opacity-35">is easy.</span>
-            <br />
-            It&apos;s the process
-            <br />
-            <span className="opacity-35">that takes time.</span>
+            <span aria-hidden="true" className="block h-2" />
+            It&apos;s the process that{" "}
+            <span className="opacity-35">takes time.</span>
           </h2>
-        </div>
+        </section>
 
-        {/* Right: pain points */}
-        <div className="flex flex-1 flex-col justify-center gap-8 p-12">
-          {PAIN_POINTS.map((item) => (
-            <div className="flex items-start gap-6" key={item.num}>
-              <span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
-                {item.num}
-              </span>
-              <div>
-                <p className="mb-1 font-semibold text-sm">{item.title}</p>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {item.desc}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <section className="flex flex-1 items-center p-6 sm:p-8 lg:p-12 lg:pl-8">
+          <div className="grid w-full grid-cols-1 sm:grid-cols-2">
+            {PAIN_POINTS.map((item) => (
+              <article
+                className="flex items-center justify-center border border-border bg-background p-5 sm:p-6"
+                key={item.num}
+              >
+                <div className="w-full text-left">
+                  <p className="mb-2 font-semibold text-[15px] leading-tight tracking-tight">
+                    {item.title}
+                  </p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
 
       <SlideBar left="" position="bottom" right="" />

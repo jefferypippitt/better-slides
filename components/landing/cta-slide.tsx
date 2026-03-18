@@ -3,23 +3,23 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SlideBar } from "./slide-bar";
+import SlideBar from "./slide-bar";
 
-export function CtaSlide() {
+export default function CtaSlide() {
   return (
     <section className="landing-section sticky top-0 z-7 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="07 / 07" right="GET STARTED" />
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-7 p-8 text-center">
-        <h2 className="font-semibold text-[clamp(2.25rem,6.5vw,5.25rem)] leading-[0.95] tracking-tight">
-          Ready To Present <span className="opacity-35">?</span>
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center lg:gap-7 lg:p-8">
+        <h2 className="font-bold text-[clamp(2.25rem,5.2vw,4.75rem)] leading-[1.05] tracking-tight">
+          Ready to Present
         </h2>
-        <p className="max-w-xl text-base text-muted-foreground leading-relaxed md:text-lg">
+        <p className="max-w-md text-muted-foreground text-sm leading-relaxed">
           Create your first presentation in minutes. Free to start, no credit
           card required.
         </p>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Link href="/sign-up">
             <Button size="lg" variant="default">
               Join Now <ChevronRight />

@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SlideBar } from "./slide-bar";
+import SlideBar from "./slide-bar";
 
 const MDX_SNIPPET = [
   { id: "title", line: "# Product Design Review" },
@@ -19,113 +19,159 @@ const MDX_SNIPPET = [
   { id: "theme-toggle", line: "<ThemeToggle />" },
 ] as const;
 
-export function WorkflowSlide() {
+function getSnippetLineClassName(line: string): string {
+  if (line.startsWith("#")) {
+    return "text-[#0000ff] dark:text-[#569cd6]";
+  }
+  if (line.startsWith("-")) {
+    return "text-[#001080] dark:text-[#d4d4d4]";
+  }
+  if (line.startsWith("<")) {
+    return "text-[#267f99] dark:text-[#4ec9b0]";
+  }
+  if (line === "") {
+    return "text-transparent";
+  }
+  return "text-[#001080] dark:text-[#d4d4d4]";
+}
+
+export default function WorkflowSlide() {
   return (
     <section className="landing-section sticky top-0 z-4 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="04 / 07" right="WORKFLOW" />
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-6 py-8 md:grid-cols-[0.9fr_1.1fr] md:px-8">
-        <div className="flex flex-col justify-center">
-          <h2 className="mt-4 font-bold text-[clamp(2rem,4.7vw,4.2rem)] leading-[1.05] tracking-tight">
-            One source.
-            <br />
-            <span className="opacity-35">Two outputs.</span>
-          </h2>
+      <div className="relative flex flex-1 flex-col lg:flex-row">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
+          {/* Left: content */}
+          <div className="flex flex-1 items-center justify-center border-border border-b p-6 sm:p-8 lg:justify-end lg:border-b-0 lg:p-12 lg:pr-8">
+            <div className="flex flex-col items-start gap-7">
+              <h2 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-[1.05] tracking-tight">
+                Write once.
+                <br />
+                <span className="opacity-35">Present everywhere.</span>
+              </h2>
 
-          <div className="mt-7 space-y-3">
-            <div className="flex items-start gap-3">
-              <CodeBlock
-                className="mt-0.5 shrink-0 text-foreground/75"
-                size={16}
-              />
-              <p className="text-sm leading-relaxed">
-                Author your deck as plain markdown and add components like{" "}
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                  {"<ThemeToggle />"}
-                </code>
-                .
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <ArrowBendDownRight
-                className="mt-0.5 shrink-0 text-foreground/75"
-                size={16}
-              />
-              <p className="text-sm leading-relaxed">
-                The parser turns markdown into slide content and mounts your
-                component in the exact place you define.
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <PresentationChart
-                className="mt-0.5 shrink-0 text-foreground/75"
-                size={16}
-              />
-              <p className="text-sm leading-relaxed">
-                Present in full screen with both narrative text and interactive
-                controls rendered together.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid min-h-0 grid-rows-2 gap-4">
-          <div className="flex min-h-0 flex-col border border-border bg-card">
-            <div className="flex items-center justify-between border-border border-b px-3 py-2">
-              <p className="font-mono text-[10px] text-muted-foreground tracking-[0.12em]">
-                deck.mdx
-              </p>
-              <span className="font-mono text-[10px] text-muted-foreground/70">
-                editor
-              </span>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto bg-background p-4 font-mono text-[11px] leading-6">
-              {MDX_SNIPPET.map((snippet) => (
-                <p
-                  className={
-                    snippet.line.startsWith("<")
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-foreground/85"
-                  }
-                  key={snippet.id}
-                >
-                  {snippet.line || "\u00A0"}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-col border border-border bg-card">
-            <div className="flex items-center justify-between border-border border-b px-3 py-2">
-              <p className="font-mono text-[10px] text-muted-foreground tracking-[0.12em]">
-                live presentation
-              </p>
-              <span className="font-mono text-[10px] text-muted-foreground/70">
-                full screen preview
-              </span>
-            </div>
-
-            <div className="min-h-0 flex-1 bg-background p-3">
-              <div className="relative flex h-full w-full flex-col border border-border bg-card p-6">
-                <div className="absolute top-3 right-3">
-                  <ThemeToggle />
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <CodeBlock
+                    className="mt-0.5 shrink-0 text-foreground/75"
+                    size={16}
+                  />
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Write in markdown, embed React components anywhere.
+                  </p>
                 </div>
+                <div className="flex items-start gap-3">
+                  <ArrowBendDownRight
+                    className="mt-0.5 shrink-0 text-foreground/75"
+                    size={16}
+                  />
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    We parse your MDX and render slides instantly.
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <PresentationChart
+                    className="mt-0.5 shrink-0 text-foreground/75"
+                    size={16}
+                  />
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Full screen presentation with text and controls together.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                <p className="max-w-[85%] font-semibold text-[clamp(1rem,1.8vw,1.45rem)] leading-tight">
-                  Product Design Review
+          {/* Mobile: simple step list */}
+          <div className="flex flex-col gap-3 border-border border-t p-6 sm:hidden">
+            {[
+              "Write slides in Markdown, embed React components anywhere.",
+              "We parse your MDX and render slides instantly.",
+              "Present full screen with notes and controls together.",
+            ].map((step, i) => (
+              <div className="flex items-start gap-3" key={step}>
+                <span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground/50">
+                  0{i + 1}
+                </span>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {step}
                 </p>
-                <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
-                  Goals
-                </p>
+              </div>
+            ))}
+          </div>
 
-                <ul className="mt-4 list-disc space-y-1 pl-5 text-muted-foreground text-sm">
-                  <li>Keep slide writing in markdown</li>
-                  <li>Embed React where interaction matters</li>
-                </ul>
+          {/* Right: canvases - vertically stacked */}
+          <div className="hidden w-full grid-rows-2 gap-4 sm:grid sm:h-72 sm:p-6 md:h-80 md:p-8 lg:h-auto lg:flex-1 lg:gap-6 lg:p-12 lg:pl-8">
+            {/* Editor canvas */}
+            <div className="flex min-h-0 flex-col border border-border bg-card">
+              <div className="flex items-center justify-between border-border border-b px-4 py-2.5">
+                <p className="font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
+                  product-review.mdx
+                </p>
+                <span className="font-mono text-[11px] text-muted-foreground/70">
+                  editor
+                </span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden bg-[#ffffff] p-0 font-mono text-[13px] leading-7 dark:bg-[#1e1e1e]">
+                <div className="flex h-full">
+                  {/* Line numbers */}
+                  <div className="flex select-none flex-col border-[#e0e0e0] border-r bg-[#ffffff] px-3 py-6 text-right text-[#237893] dark:border-[#3c3c3c] dark:bg-[#1e1e1e] dark:text-[#858585]">
+                    {MDX_SNIPPET.map((snippet, index) => (
+                      <span className="text-[12px]" key={`line-${snippet.id}`}>
+                        {index + 1}
+                      </span>
+                    ))}
+                  </div>
+                  {/* Code content */}
+                  <div className="flex-1 overflow-auto bg-[#ffffff] p-6 dark:bg-[#1e1e1e]">
+                    {MDX_SNIPPET.map((snippet) => (
+                      <p
+                        className={getSnippetLineClassName(snippet.line)}
+                        key={snippet.id}
+                      >
+                        {snippet.line || "\u00A0"}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview canvas */}
+            <div className="flex min-h-0 flex-col border border-border bg-card">
+              <div className="flex items-center justify-between border-border border-b px-4 py-2.5">
+                <p className="font-mono text-[11px] text-muted-foreground tracking-[0.12em]">
+                  live presentation
+                </p>
+                <span className="font-mono text-[11px] text-muted-foreground/70">
+                  full screen preview
+                </span>
+              </div>
+
+              <div className="min-h-0 flex-1 bg-background p-5">
+                <div className="relative flex h-full w-full flex-col border border-border bg-card p-8">
+                  <div className="absolute top-3 right-3">
+                    <ThemeToggle />
+                  </div>
+
+                  <p className="max-w-[85%] font-semibold text-[clamp(1rem,1.8vw,1.75rem)] leading-tight">
+                    Product Design Review
+                  </p>
+                  <p className="mt-4 text-[15px] text-muted-foreground leading-relaxed">
+                    Goals
+                  </p>
+
+                  <ul className="mt-5 list-disc space-y-1.5 pl-5 text-[15px] text-muted-foreground">
+                    <li>Keep slide writing in markdown</li>
+                    <li>Embed React where interaction matters</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        {/* end unified container */}
       </div>
 
       <SlideBar left="" position="bottom" right="" />

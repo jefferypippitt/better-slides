@@ -2,7 +2,7 @@
 
 import { MinusIcon, PlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { SlideBar } from "./slide-bar";
+import SlideBar from "./slide-bar";
 
 const FAQS = [
   {
@@ -23,29 +23,29 @@ const FAQS = [
   },
   {
     q: "Is my data private?",
-    a: "All decks are stored privately and tied to your account. No one else can view or access them.",
+    a: "Decks are stored privately and tied to your account. Other users cannot access them. Note that deck content is not encrypted at rest, so avoid uploading sensitive or confidential information.",
   },
 ] as const;
 
-export function FaqSlide() {
+export default function FaqSlide() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <section className="landing-section sticky top-0 z-6 flex h-svh flex-col overflow-hidden border-border border-b bg-background">
       <SlideBar left="06 / 07" right="FAQ" />
 
-      <div className="flex flex-1 flex-col lg:flex-row">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
         {/* Left: title */}
-        <div className="flex flex-1 items-center justify-center border-border border-b p-12 lg:border-r lg:border-b-0">
-          <h2 className="font-bold text-[clamp(2.2rem,5.5vw,4.5rem)] leading-[1.1] tracking-tight">
-            Questions,
+        <section className="flex flex-1 items-center justify-center p-6 sm:p-8 lg:p-12">
+          <h2 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-[1.06] tracking-tight">
+            Still
             <br />
-            <span className="opacity-35">answered.</span>
+            <span className="opacity-35">curious?</span>
           </h2>
-        </div>
+        </section>
 
         {/* Right: accordion */}
-        <div className="flex flex-1 flex-col justify-center gap-8 p-12">
+        <section className="flex flex-1 flex-col justify-center gap-8 p-6 sm:p-8 lg:p-12">
           <div className="divide-y divide-border border border-border">
             {FAQS.map((item, index) => {
               const isOpen = openIndex === index;
@@ -79,7 +79,7 @@ export function FaqSlide() {
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
 
       <SlideBar left="" position="bottom" right="" />
