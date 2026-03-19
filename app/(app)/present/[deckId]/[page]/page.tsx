@@ -1,20 +1,42 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { MDXRemote } from "next-mdx-remote/rsc";
-import {
-  getMdxComponentByName,
-  resolveMdxComponents,
-} from "@/components/mdx/component-registry";
-import { mdxComponents } from "@/components/mdx/mdx-components";
+import { Tweet } from "react-tweet";
+import { ClientMdxRenderer } from "@/components/mdx/client-mdx-renderer";
+import { ClientWidgetSlot } from "@/components/mdx/client-widget-slot";
 import { TimerBox } from "@/components/present/timer-box";
+import { Slide } from "@/components/slides/primitives";
 import type { MarkdownSection } from "@/lib/sections";
 import { parseMarkdownSections } from "@/lib/sections";
 import { getAuthorizedDeckForPresent } from "@/server/present";
 
 export const dynamic = "force-dynamic";
 
-const Slide = mdxComponents.Slide;
 const HEADING_PREFIX_RE = /^#{1,6}\s+/;
+const YOUTUBE_WATCH_RE = /[?&]v=([^&#]+)/;
+const YOUTUBE_SHORT_RE = /youtu\.be\/([^?&#]+)/;
+const YOUTUBE_EMBED_RE = /youtube\.com\/embed\/([^?&#]+)/;
+const TWITTER_STATUS_RE = /\/status\/(\d+)/;
+
+function extractTweetId(url: string): string | null {
+  const match = TWITTER_STATUS_RE.exec(url);
+  return match ? match[1] : null;
+}
+
+function toYoutubeEmbedUrl(url: string): string | null {
+  const watchMatch = YOUTUBE_WATCH_RE.exec(url);
+  if (watchMatch) {
+    return `https://www.youtube.com/embed/${watchMatch[1]}`;
+  }
+  const shortMatch = YOUTUBE_SHORT_RE.exec(url);
+  if (shortMatch) {
+    return `https://www.youtube.com/embed/${shortMatch[1]}`;
+  }
+  const embedMatch = YOUTUBE_EMBED_RE.exec(url);
+  if (embedMatch) {
+    return `https://www.youtube.com/embed/${embedMatch[1]}`;
+  }
+  return null;
+}
 const PRESENT_FRAME_CLASSES =
   "slide-view @container absolute inset-4 overflow-hidden rounded-2xl bg-background";
 
@@ -23,7 +45,6 @@ interface RenderCanvasBoxArgs {
     Awaited<ReturnType<typeof getAuthorizedDeckForPresent>>
   >["slides"][number]["canvasLayout"][number];
   deckId: string;
-  resolvedMdxComponents: ReturnType<typeof resolveMdxComponents>;
   sectionById: Map<string, MarkdownSection>;
   slideCount: number;
   slideIndex: number;
@@ -57,7 +78,6 @@ function stripSectionHeading(content: string): string {
 function renderCanvasBox({
   box,
   deckId,
-  resolvedMdxComponents,
   sectionById,
   slideIndex,
   slideCount,
@@ -86,11 +106,7 @@ function renderCanvasBox({
   }
 
   if (box.kind === "component") {
-    const Component = getMdxComponentByName(
-      box.componentName ?? "",
-      uploadedWidgets
-    );
-    if (!Component) {
+    if (!box.componentName?.trim()) {
       return null;
     }
     return (
@@ -104,7 +120,10 @@ function renderCanvasBox({
           width: `${box.w}%`,
         }}
       >
-        <Component />
+        <ClientWidgetSlot
+          componentName={box.componentName}
+          uploadedWidgets={uploadedWidgets}
+        />
       </div>
     );
   }
@@ -127,6 +146,59 @@ function renderCanvasBox({
         {/* biome-ignore lint/performance/noImgElement: user-provided external URLs require img tag */}
         {/* biome-ignore lint/correctness/useImageSize: dimensions are controlled via CSS for user-provided URLs */}
         <img alt="" className="h-full w-full object-cover" src={box.imageUrl} />
+      </div>
+    );
+  }
+
+  if (box.kind === "youtube") {
+    if (!box.youtubeUrl) {
+      return null;
+    }
+    const embedUrl = toYoutubeEmbedUrl(box.youtubeUrl);
+    if (!embedUrl) {
+      return null;
+    }
+    return (
+      <div
+        className="absolute overflow-hidden"
+        key={box.id}
+        style={{
+          height: `${box.h}%`,
+          left: `${box.x}%`,
+          top: `${box.y}%`,
+          width: `${box.w}%`,
+        }}
+      >
+        <iframe
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="h-full w-full"
+          src={embedUrl}
+          title="YouTube video"
+        />
+      </div>
+    );
+  }
+
+  if (box.kind === "twitter") {
+    const tweetId = box.twitterUrl ? extractTweetId(box.twitterUrl) : null;
+    if (!tweetId) {
+      return null;
+    }
+    return (
+      <div
+        className="absolute flex items-center justify-center overflow-hidden"
+        key={box.id}
+        style={{
+          height: `${box.h}%`,
+          left: `${box.x}%`,
+          top: `${box.y}%`,
+          width: `${box.w}%`,
+        }}
+      >
+        <div className="h-full w-full [&>div]:bg-transparent! [&_.react-tweet-tweet]:bg-transparent!">
+          <Tweet id={tweetId} />
+        </div>
       </div>
     );
   }
@@ -232,6 +304,33 @@ function renderCanvasBox({
     );
   }
 
+  if (box.kind === "url-qr") {
+    if (!box.customQrUrl) {
+      return null;
+    }
+    return (
+      <div
+        className="absolute flex items-center justify-center p-2"
+        key={box.id}
+        style={{
+          height: `${box.h}%`,
+          left: `${box.x}%`,
+          top: `${box.y}%`,
+          width: `${box.w}%`,
+        }}
+      >
+        <Image
+          alt="QR code"
+          className="h-full w-full object-contain"
+          height={300}
+          src={`/api/qr?url=${encodeURIComponent(box.customQrUrl)}`}
+          unoptimized
+          width={300}
+        />
+      </div>
+    );
+  }
+
   const section = box.sectionId ? sectionById.get(box.sectionId) : undefined;
   if (!section) {
     return null;
@@ -250,22 +349,22 @@ function renderCanvasBox({
       }}
     >
       <SectionBoxContent
-        components={resolvedMdxComponents}
         section={section}
         textStyle={textStyle}
+        uploadedWidgets={uploadedWidgets}
       />
     </div>
   );
 }
 
-async function SectionBoxContent({
-  components,
+function SectionBoxContent({
   section,
   textStyle,
+  uploadedWidgets,
 }: {
-  components: ReturnType<typeof resolveMdxComponents>;
   section: MarkdownSection;
   textStyle: "title" | "subtitle" | "body";
+  uploadedWidgets: { compiledJs: string; componentName: string }[];
 }) {
   const bodyMdx = stripSectionHeading(section.content);
   return (
@@ -274,9 +373,11 @@ async function SectionBoxContent({
         {section.heading}
       </p>
       {bodyMdx && (
-        <div className="text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_li]:mb-0.5 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5">
-          <MDXRemote components={components} source={bodyMdx} />
-        </div>
+        <ClientMdxRenderer
+          className="text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_li]:mb-0.5 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
+          source={bodyMdx}
+          uploadedWidgets={uploadedWidgets}
+        />
       )}
     </div>
   );
@@ -292,7 +393,6 @@ export default async function SlidePage({ params }: Props) {
     compiledJs: widget.compiledJs,
     componentName: widget.componentName,
   }));
-  const resolvedMdxComponents = resolveMdxComponents(deck.mdx, uploadedWidgets);
 
   const slideIndex = Number.parseInt(page, 10) - 1;
 
@@ -319,12 +419,16 @@ export default async function SlidePage({ params }: Props) {
         return true;
       }
       if (box.kind === "component") {
-        return Boolean(
-          getMdxComponentByName(box.componentName ?? "", uploadedWidgets)
-        );
+        return Boolean(box.componentName?.trim());
       }
       if (box.kind === "image") {
         return Boolean(box.imageUrl);
+      }
+      if (box.kind === "youtube") {
+        return Boolean(box.youtubeUrl && toYoutubeEmbedUrl(box.youtubeUrl));
+      }
+      if (box.kind === "twitter") {
+        return Boolean(box.twitterUrl && extractTweetId(box.twitterUrl));
       }
       if (box.kind === "shape") {
         return true;
@@ -341,6 +445,9 @@ export default async function SlidePage({ params }: Props) {
       if (box.kind === "qr-code") {
         return true;
       }
+      if (box.kind === "url-qr") {
+        return Boolean(box.customQrUrl);
+      }
       return box.sectionId ? sectionById.has(box.sectionId) : false;
     };
     const renderableBoxes = slideLayout.canvasLayout.filter(isBoxRenderable);
@@ -356,7 +463,6 @@ export default async function SlidePage({ params }: Props) {
           renderCanvasBox({
             box,
             deckId,
-            resolvedMdxComponents,
             sectionById,
             slideIndex,
             slideCount: deck.slides.length,
@@ -379,7 +485,7 @@ export default async function SlidePage({ params }: Props) {
   return (
     <div className={PRESENT_FRAME_CLASSES}>
       <Slide className="h-full w-full">
-        <MDXRemote components={resolvedMdxComponents} source={source} />
+        <ClientMdxRenderer source={source} uploadedWidgets={uploadedWidgets} />
       </Slide>
     </div>
   );

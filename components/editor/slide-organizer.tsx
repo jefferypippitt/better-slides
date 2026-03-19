@@ -7,6 +7,7 @@ import {
   type SlideDragState,
 } from "@/components/editor/slide-organizer-section-card";
 import { WidgetLibraryPanel } from "@/components/editor/slide-organizer-widget-library-panel";
+import { builtinMdxComponentNames } from "@/components/mdx/mdx-components";
 import type { MarkdownSection } from "@/lib/sections";
 
 const JSX_COMPONENT_RE = /<([A-Z][a-zA-Z0-9]*)\s*\/?>/;
@@ -93,7 +94,10 @@ export function SlideOrganizer({
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
     null
   );
-  const widgetNameSet = useMemo(() => new Set(widgetNames), [widgetNames]);
+  const widgetNameSet = useMemo(
+    () => new Set([...widgetNames, ...builtinMdxComponentNames]),
+    [widgetNames]
+  );
   const missingComponentNames = useMemo(() => {
     const missing = new Set<string>();
     for (const section of sections) {

@@ -81,17 +81,14 @@ export default function HeroSlide() {
           <div className="relative hidden flex-1 items-center justify-start p-6 sm:p-8 lg:flex lg:p-12 lg:pl-8">
             <div className="relative h-[520px] w-full max-w-[580px] overflow-hidden border border-border bg-card p-4">
               <div className="relative mt-3 grid h-[440px] grid-cols-[1.2fr_0.75fr_1fr]">
-                <div className="relative overflow-hidden border border-border bg-background p-3">
-                  <div className="flex items-center justify-between border border-border bg-card px-2.5 py-1.5">
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+                <div className="relative flex flex-col overflow-hidden border border-border bg-background p-3">
+                  <div className="flex items-center justify-between bg-card px-2.5 py-1.5">
+                    <span className="font-bold font-mono text-[14px] text-foreground">
                       Acme Corp Board Update
-                    </span>
-                    <span className="font-mono text-[10px] text-muted-foreground/70">
-                      slide 4
                     </span>
                   </div>
 
-                  <div className="mt-4 border border-border bg-card p-3.5">
+                  <div className="flex-1 bg-card p-3.5">
                     <p className="font-semibold text-[13px]">
                       Q3 Results Snapshot
                     </p>
@@ -108,13 +105,13 @@ export default function HeroSlide() {
                     </ul>
                   </div>
 
-                  <div className="mt-3 border border-border bg-card px-2.5 py-2">
-                    <div className="flex items-center gap-2">
+                  <div className="border border-border bg-card px-2.5 py-2">
+                    <div className="flex items-center justify-center gap-1.5">
                       {HERO_DOT_IDS.map((dotId, index) => (
                         <span
                           className={`rounded-full transition-all ${
                             index === 3
-                              ? "h-1.5 w-5 bg-foreground"
+                              ? "h-1.5 w-1.5 bg-foreground"
                               : "h-1.5 w-1.5 bg-border"
                           }`}
                           key={dotId}
@@ -160,7 +157,7 @@ export default function HeroSlide() {
                         presenter phone
                       </span>
                       <span className="inline-flex items-center gap-1 font-mono text-[9px] text-emerald-500">
-                        <WifiHigh className="animate-pulse" size={10} />
+                        <WifiHigh size={10} />
                         synced
                       </span>
                     </div>
@@ -191,13 +188,13 @@ export default function HeroSlide() {
                         className="inline-flex items-center justify-center border border-border bg-background px-2 py-1.5 font-mono text-[9px] text-muted-foreground transition-colors hover:border-foreground/40 hover:bg-foreground/5 hover:text-foreground"
                         type="button"
                       >
-                        previous
+                        Previous
                       </button>
                       <button
                         className="inline-flex items-center justify-center border border-transparent bg-primary px-2 py-1.5 font-mono text-[9px] text-primary-foreground transition-colors hover:bg-primary/90"
                         type="button"
                       >
-                        next
+                        Next
                       </button>
                     </div>
                   </div>
@@ -216,23 +213,17 @@ export default function HeroSlide() {
         {/* Mobile canvas */}
         <div className="relative mx-auto w-full max-w-[480px] px-6 pb-8 sm:max-w-[660px] sm:px-8 sm:pb-10 lg:hidden">
           <div className="relative h-[260px] overflow-hidden border border-border bg-card p-3.5 sm:h-[340px]">
-            <div className="relative mt-2 grid h-[210px] grid-cols-[1.2fr_0.75fr_1fr] sm:h-[290px]">
-              <div className="relative overflow-hidden border border-border bg-background p-2">
-                <div className="flex items-center justify-between border border-border bg-card px-1.5 py-1">
-                  <span className="inline-flex items-center gap-1 font-mono text-[7px] text-muted-foreground">
+            <div className="relative grid h-[210px] grid-cols-[1.2fr_0.75fr_1fr] sm:h-[290px]">
+              <div className="relative flex flex-col overflow-hidden border border-border bg-background p-2">
+                <div className="flex items-center justify-between bg-card px-1.5 py-1">
+                  <span className="font-bold font-mono text-[9px] text-foreground">
                     Acme Corp Board Update
-                  </span>
-                  <span className="font-mono text-[7px] text-muted-foreground/70">
-                    slide 4
                   </span>
                 </div>
 
-                <div className="mt-2 border border-border bg-card p-1.5">
+                <div className="flex-1 bg-card p-1.5">
                   <p className="font-semibold text-[9px]">
                     Q3 Results Snapshot
-                  </p>
-                  <p className="mt-0.5 text-[7px] text-muted-foreground">
-                    Executive summary for the quarterly board presentation.
                   </p>
                   <ul className="mt-1 space-y-0.5 pl-3 text-[7px] text-muted-foreground">
                     <li>Revenue reached $24.8M, up 18% QoQ</li>
@@ -241,13 +232,13 @@ export default function HeroSlide() {
                   </ul>
                 </div>
 
-                <div className="mt-1.5 border border-border bg-card px-1.5 py-1">
-                  <div className="flex items-center gap-1">
+                <div className="border border-border bg-card px-1.5 py-1">
+                  <div className="flex items-center justify-center gap-1">
                     {HERO_DOT_IDS.map((dotId, index) => (
                       <span
                         className={`rounded-full ${
                           index === 3
-                            ? "h-1 w-3 bg-foreground"
+                            ? "h-1 w-1 bg-foreground"
                             : "h-1 w-1 bg-border"
                         }`}
                         key={dotId}
@@ -292,7 +283,7 @@ export default function HeroSlide() {
                       presenter
                     </span>
                     <span className="inline-flex items-center gap-0.5 font-mono text-[6px] text-emerald-500">
-                      <WifiHigh className="animate-pulse" size={7} />
+                      <WifiHigh size={7} />
                       synced
                     </span>
                   </div>

@@ -1,7 +1,7 @@
-import type { useTransitionRouter } from "next-view-transitions"
-
 type SlideDirection = "forward" | "backward"
-type TransitionRouter = ReturnType<typeof useTransitionRouter>
+type TransitionRouter = {
+  push: (href: string, options?: { onTransitionReady?: () => void }) => void
+}
 type NavigationRequest = {
   direction: SlideDirection
   href: string
@@ -9,7 +9,6 @@ type NavigationRequest = {
 }
 
 const TRANSITION_STATE_KEY = "slideDir"
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
 let isNavigating = false
 let isProcessingQueue = false
@@ -18,14 +17,6 @@ type QueuedNavigation = NavigationRequest & {
   resolve: () => void
 }
 const navigationQueue: QueuedNavigation[] = []
-
-function isReducedMotionPreferred(): boolean {
-  return window.matchMedia(REDUCED_MOTION_QUERY).matches
-}
-
-function isViewTransitionSupported(): boolean {
-  return "startViewTransition" in document
-}
 
 function clearDirectionState(): void {
   delete document.documentElement.dataset[TRANSITION_STATE_KEY]
@@ -39,20 +30,8 @@ async function runTransitionNavigation({
   isNavigating = true
   document.documentElement.dataset[TRANSITION_STATE_KEY] = direction
 
-  if (isViewTransitionSupported() && !isReducedMotionPreferred()) {
-    const transition = document.startViewTransition(() => {
-      router.push(href)
-    })
-
-    try {
-      await transition.finished
-    } catch {
-      // Transition was skipped or interrupted
-    }
-  } else {
-    router.push(href)
-    await new Promise((resolve) => setTimeout(resolve, 300))
-  }
+  router.push(href)
+  await new Promise((resolve) => setTimeout(resolve, 350))
 
   clearDirectionState()
   isNavigating = false

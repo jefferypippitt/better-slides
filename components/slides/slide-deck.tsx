@@ -16,6 +16,7 @@ interface SlideDeckProps {
   basePath?: string;
   children: ReactNode;
   className?: string;
+  pollInterval?: number;
   showCounter?: boolean;
   showProgress?: boolean;
   slides: ReactNode[];
@@ -29,6 +30,7 @@ const INTERACTIVE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 export function SlideDeck({
   children,
   basePath = "/slides",
+  pollInterval = 1500,
   slides,
   syncEndpoint,
 }: SlideDeckProps) {
@@ -240,6 +242,47 @@ export function SlideDeck({
       channel.close();
     };
   }, [getChannelName, getCurrentPage, navigateToPage, slides.length]);
+
+  const initializedRef = useRef(false);
+
+  const pollRemote = useCallback(async () => {
+    if (!syncEndpoint) {
+      return;
+    }
+    try {
+      const res = await fetch(syncEndpoint, { cache: "no-store" });
+      if (!res.ok) {
+        return;
+      }
+      const data = (await res.json()) as {
+        slide: number;
+        total: number;
+        ended?: boolean;
+      };
+      if (data.ended) {
+        return;
+      }
+      const remoteSlide = data.slide;
+
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        return;
+      }
+
+      const currentPage = getCurrentPage();
+      if (remoteSlide !== currentPage) {
+        await navigateToPage(remoteSlide);
+      }
+    } catch {
+      // ignore poll errors
+    }
+  }, [getCurrentPage, navigateToPage, syncEndpoint]);
+
+  useEffect(() => {
+    pollRemote();
+    const id = setInterval(pollRemote, pollInterval);
+    return () => clearInterval(id);
+  }, [pollRemote, pollInterval]);
 
   // Keyboard navigation
   useEffect(() => {

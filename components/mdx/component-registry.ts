@@ -4,7 +4,7 @@ import { mdxBaseComponents } from "@/components/mdx/mdx-components";
 import { RuntimeWidget } from "@/components/mdx/runtime-widget";
 import { mdxWidgetComponents } from "@/components/mdx/widgets/generated-registry";
 
-type MdxComponentMap = NonNullable<MDXRemoteProps["components"]>;
+type MdxComponentMap = MDXRemoteProps["components"];
 
 interface MdxComponentEntry {
   component: ComponentType<Record<string, unknown>>;

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-
 import {
   Slide,
   SlideBadge,
@@ -19,6 +18,46 @@ import {
   SlideSubtitle,
   SlideTitle,
 } from "@/components/slides/primitives";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card as CardBox,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const PASCAL_CASE_RE = /^[A-Z]/;
 
 // ── Layout components ──────────────────────────────────────────────────────────
 
@@ -146,6 +185,66 @@ export const mdxBaseComponents = {
   Card,
   Cards,
 
+  // shadcn/ui — Accordion
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+
+  // shadcn/ui — Alert
+  Alert,
+  AlertTitle,
+  AlertDescription,
+
+  // shadcn/ui — Avatar
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarGroup,
+
+  // shadcn/ui — Badge
+  Badge,
+
+  // shadcn/ui — Button
+  Button,
+
+  // shadcn/ui — Card (CardBox avoids collision with the link-card `Card` above)
+  CardBox,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+
+  // shadcn/ui — Kbd
+  Kbd,
+  KbdGroup,
+
+  // shadcn/ui — Progress
+  Progress,
+
+  // shadcn/ui — Separator
+  Separator,
+
+  // shadcn/ui — Skeleton / Spinner
+  Skeleton,
+  Spinner,
+
+  // shadcn/ui — Table
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableCaption,
+
+  // shadcn/ui — Tabs
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+
   // Slide primitives
   Slide,
   SlideBadge,
@@ -180,3 +279,8 @@ export const mdxBaseComponents = {
 
 // Backward-compatible export for places that still expect `mdxComponents`.
 export const mdxComponents = mdxBaseComponents;
+
+// Built-in PascalCase component names available in every deck without uploading.
+export const builtinMdxComponentNames = Object.keys(mdxBaseComponents).filter(
+  (k) => PASCAL_CASE_RE.test(k)
+);

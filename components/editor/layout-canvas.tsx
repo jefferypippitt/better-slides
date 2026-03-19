@@ -13,12 +13,6 @@ import {
   type UploadedDeckWidget,
 } from "@/components/mdx/component-registry";
 import { Badge } from "@/components/ui/badge";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import type { CanvasBox as DeckCanvasBox } from "@/lib/decks";
 import { parseMarkdownSections } from "@/lib/sections";
 
@@ -740,9 +734,7 @@ export function LayoutCanvas({
                 type="button"
               >
                 <div className="mb-1 flex items-center gap-2">
-                  <Badge className="h-4 min-w-4 bg-muted px-1 font-semibold text-[9px] text-muted-foreground">
-                    {index + 1}
-                  </Badge>
+                  <Badge variant="outline">{index + 1}</Badge>
                   <span className="min-w-0 flex-1 truncate font-semibold text-xs">
                     {section.heading}
                   </span>
@@ -999,15 +991,10 @@ export function LayoutCanvas({
 
               {/* empty state */}
               {boxes.length === 0 && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
-                  <Empty className="w-full max-w-md border border-dashed bg-background/80 backdrop-blur-[1px]">
-                    <EmptyHeader>
-                      <EmptyTitle>Canvas is empty</EmptyTitle>
-                      <EmptyDescription>
-                        Drag or click a section to add it here
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <p className="text-[11px] text-muted-foreground/50">
+                    Drag or click a section to add it here
+                  </p>
                 </div>
               )}
 
@@ -1017,18 +1004,24 @@ export function LayoutCanvas({
                 const isSeparator = box.kind === "separator";
                 const isComponent = box.kind === "component";
                 const isImage = box.kind === "image";
+                const isYoutube = box.kind === "youtube";
+                const isTwitter = box.kind === "twitter";
                 const isShape = box.kind === "shape";
                 const isText = box.kind === "text";
                 const isPageNumber = box.kind === "page-number";
                 const isTimer = box.kind === "timer";
                 const isQrCode = box.kind === "qr-code";
+                const isUrlQr = box.kind === "url-qr";
                 const isDecorative =
                   isImage ||
+                  isYoutube ||
+                  isTwitter ||
                   isShape ||
                   isText ||
                   isPageNumber ||
                   isTimer ||
-                  isQrCode;
+                  isQrCode ||
+                  isUrlQr;
                 const section =
                   isSeparator || isDecorative
                     ? undefined
@@ -1184,6 +1177,49 @@ export function LayoutCanvas({
                           )}
                         </div>
                       )}
+                      {isYoutube && (
+                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded bg-black">
+                          {box.youtubeUrl ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center gap-1">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
+                                <div className="ml-0.5 h-0 w-0 border-y-[6px] border-y-transparent border-l-10 border-l-white" />
+                              </div>
+                              <span className="text-[9px] text-white/60">
+                                YouTube
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
+                              No URL set
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {isTwitter && (
+                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded bg-black">
+                          {box.twitterUrl ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center gap-1">
+                              <svg
+                                aria-hidden="true"
+                                fill="white"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
+                              <span className="text-[9px] text-white/60">
+                                X / Twitter
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
+                              No URL set
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {isShape && (
                         <div
                           className={`h-full w-full ${box.shapeType === "circle" ? "rounded-full" : "rounded-sm"}`}
@@ -1225,6 +1261,24 @@ export function LayoutCanvas({
                           ) : (
                             <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
                               Save deck for QR
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {isUrlQr && (
+                        <div className="flex h-full w-full items-center justify-center">
+                          {box.customQrUrl ? (
+                            <Image
+                              alt="QR code"
+                              className="h-full w-full object-contain"
+                              height={200}
+                              src={`/api/qr?url=${encodeURIComponent(box.customQrUrl)}`}
+                              unoptimized
+                              width={200}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
+                              No URL set
                             </div>
                           )}
                         </div>

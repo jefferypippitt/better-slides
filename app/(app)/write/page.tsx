@@ -1,42 +1,16 @@
 "use client";
 
-import {
-  ArrowSquareOut,
-  Copy,
-  Microphone,
-  Plus,
-  Trash,
-  UploadSimple,
-  X,
-} from "@phosphor-icons/react";
 import { nanoid } from "nanoid";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { DeckSidebar } from "@/components/editor/deck-sidebar";
 import type { CanvasBox } from "@/components/editor/layout-canvas";
-import { LayoutCanvas } from "@/components/editor/layout-canvas";
-import { SlideOrganizer } from "@/components/editor/slide-organizer";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupText,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
-import { Spinner } from "@/components/ui/spinner";
+import { WriteEditorPane } from "@/components/editor/write/write-editor-pane";
+import { WriteLayoutPane } from "@/components/editor/write/write-layout-pane";
+import { WriteSpeakerNotesDialog } from "@/components/editor/write/write-speaker-notes-dialog";
+import { WriteTopBar } from "@/components/editor/write/write-top-bar";
 import type { Deck, SlideLayout } from "@/lib/decks";
 import { DEFAULT_DECK_MDX, DEFAULT_DECK_TITLE } from "@/lib/default-deck";
 import { parseMarkdownSections } from "@/lib/sections";
@@ -55,6 +29,11 @@ const MdxEditor = dynamic(
     })),
   { ssr: false }
 );
+
+interface MdxEditorLikeProps {
+  onChange: (value: string) => void;
+  value: string;
+}
 
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 const FRONT_MATTER_RE = /^---[\s\S]*?---\n?/;
@@ -124,7 +103,6 @@ function newSlide(): SlideLayout {
   return { id: nanoid(), canvasLayout: [], speakerNotes: "" };
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: page component intentionally coordinates editor state in one place.
 export default function WritePage() {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"editor" | "layout">("editor");
@@ -212,12 +190,18 @@ export default function WritePage() {
   }
 
   async function handleNewDeck() {
-    const deck = await createDeckAction({
-      title: DEFAULT_DECK_TITLE,
-      mdx: DEFAULT_DECK_MDX,
-    });
-    setDecks((prev) => [...prev, deck]);
-    loadDeck(deck);
+    try {
+      const deck = await createDeckAction({
+        title: DEFAULT_DECK_TITLE,
+        mdx: DEFAULT_DECK_MDX,
+      });
+      setDecks((prev) => [...prev, deck]);
+      loadDeck(deck);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create deck."
+      );
+    }
   }
 
   async function handleRenameDeck(id: string, newTitle: string) {
@@ -294,6 +278,10 @@ export default function WritePage() {
           setActiveDeckId(deck.id);
           setDeckWidgets(deck.widgets);
         }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to save deck."
+        );
       } finally {
         setSaving(false);
       }
@@ -703,286 +691,75 @@ export default function WritePage() {
   }
   return (
     <div className="flex h-svh flex-col overflow-hidden">
-      {/* Top bar */}
-      <header className="flex items-center gap-3 border-b px-4 py-2">
-        <span className="rounded bg-muted px-2 py-1 font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
-          {viewMode === "editor" ? "Writing" : "Layout"}
-        </span>
-        <input
-          aria-label="Deck title"
-          className="min-w-0 flex-1 bg-transparent font-medium text-sm outline-none"
-          maxLength={TITLE_MAX_LENGTH}
-          onChange={(e) => setTitle(e.target.value)}
-          type="text"
-          value={title}
-        />
-        <Button
-          disabled={saving}
-          onClick={() => handleSave()}
-          size="sm"
-          variant="outline"
-        >
-          {saving ? "Saving…" : "Save"}
-        </Button>
-        <Button
-          onClick={() =>
-            viewMode === "editor"
-              ? handleSwitchToLayout()
-              : setViewMode("editor")
+      <WriteTopBar
+        activeDeckId={activeDeckId}
+        decksCount={decks.length}
+        onDeleteAllDecks={handleDeleteAllDecks}
+        onNewDeck={handleNewDeck}
+        onPresent={handlePresent}
+        onSave={() => {
+          handleSave().then(() => undefined);
+        }}
+        onTitleChange={setTitle}
+        onToggleView={() => {
+          if (viewMode === "editor") {
+            handleSwitchToLayout().then(() => undefined);
+            return;
           }
-          size="sm"
-          variant="outline"
-        >
-          {viewMode === "editor" ? "Edit Layout" : "Back to Editor"}
-        </Button>
-        {activeDeckId && (
-          <Button
-            disabled={saving || presenting}
-            onClick={handlePresent}
-            size="sm"
-            variant="outline"
-          >
-            <ArrowSquareOut className="mr-1" size={14} />
-            {presenting ? "Opening…" : "Present"}
-          </Button>
-        )}
-        <ThemeToggle />
-      </header>
+          setViewMode("editor");
+        }}
+        presenting={presenting}
+        saving={saving}
+        title={title}
+        titleMaxLength={TITLE_MAX_LENGTH}
+        viewMode={viewMode}
+      />
 
       {viewMode === "editor" ? (
-        <div className="flex min-h-0 flex-1">
-          <DeckSidebar
-            activeDeckId={activeDeckId}
-            decks={decks}
-            onDeleteAllDecks={handleDeleteAllDecks}
-            onDeleteDeck={handleDeleteDeck}
-            onNewDeck={handleNewDeck}
-            onRenameDeck={handleRenameDeck}
-            onSelectDeck={handleSelectDeck}
-            showElementActions={false}
-          />
-          <div className="flex min-h-0 flex-1 flex-col">
-            {/* Editor toolbar */}
-            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-0.75">
-              {/* Text / Outline toggle */}
-              <div className="flex items-center rounded border text-[11px]">
-                <button
-                  className={`rounded-l px-2 py-1 transition-colors ${
-                    editorSubView === "text"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60"
-                  }`}
-                  onClick={() => setEditorSubView("text")}
-                  type="button"
-                >
-                  Text
-                </button>
-                <button
-                  className={`rounded-r border-l px-2 py-1 transition-colors ${
-                    editorSubView === "outline"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60"
-                  }`}
-                  onClick={() => setEditorSubView("outline")}
-                  type="button"
-                >
-                  Outline
-                </button>
-              </div>
-
-              {editorSubView === "text" && (
-                <>
-                  <button
-                    className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={handleClear}
-                    type="button"
-                  >
-                    <X size={12} />
-                    Clear
-                  </button>
-                  <button
-                    className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={uploading}
-                    onClick={() => fileInputRef.current?.click()}
-                    type="button"
-                  >
-                    <UploadSimple size={12} />
-                    {uploading ? "Importing…" : "Upload Markdown"}
-                  </button>
-                  {uploadError && (
-                    <span className="text-[11px] text-destructive">
-                      {uploadError}
-                    </span>
-                  )}
-                </>
-              )}
-
-              {editorSubView === "outline" && (
-                <>
-                  <span className="text-[11px] text-muted-foreground">
-                    {mdxSections.length} nodes
-                  </span>
-                  <button
-                    className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={widgetUploading}
-                    onClick={handleUploadWidgetToLibrary}
-                    type="button"
-                  >
-                    <UploadSimple size={12} />
-                    {widgetUploading
-                      ? "Uploading component…"
-                      : "Upload Component"}
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-hidden">
-              {editorSubView === "text" ? (
-                <MdxEditor onChange={setMdx} value={mdx} />
-              ) : (
-                <SlideOrganizer
-                  onAttachWidget={handleAttachWidgetToSection}
-                  onReorder={handleSectionReorder}
-                  sections={mdxSections}
-                  sectionWidgetMap={outlineSectionWidgetMap}
-                  widgetNames={availableWidgetNames}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <WriteEditorPane
+          activeDeckId={activeDeckId}
+          decks={decks}
+          editorSubView={editorSubView}
+          MdxEditorComponent={MdxEditor as ComponentType<MdxEditorLikeProps>}
+          mdx={mdx}
+          mdxSections={mdxSections}
+          onAttachWidget={handleAttachWidgetToSection}
+          onClear={handleClear}
+          onDeleteAllDecks={handleDeleteAllDecks}
+          onDeleteDeck={handleDeleteDeck}
+          onMdxChange={setMdx}
+          onRenameDeck={handleRenameDeck}
+          onReorderSections={handleSectionReorder}
+          onSelectDeck={handleSelectDeck}
+          onSetEditorSubView={setEditorSubView}
+          onUploadMarkdown={() => fileInputRef.current?.click()}
+          onUploadWidgetToLibrary={handleUploadWidgetToLibrary}
+          sectionWidgetMap={outlineSectionWidgetMap}
+          uploadError={uploadError}
+          uploading={uploading}
+          widgetNames={availableWidgetNames}
+          widgetUploading={widgetUploading}
+        />
       ) : (
-        <div className="flex min-h-0 flex-1">
-          <DeckSidebar
-            activeDeckId={activeDeckId}
-            decks={decks}
-            onAddElement={handleAddElement}
-            onDeleteAllDecks={handleDeleteAllDecks}
-            onDeleteDeck={handleDeleteDeck}
-            onNewDeck={handleNewDeck}
-            onRenameDeck={handleRenameDeck}
-            onSelectDeck={handleSelectDeck}
-            showElementActions
-          />
-
-          {/* Slides panel */}
-          <aside className="flex w-36 shrink-0 flex-col border-r bg-background">
-            <div className="border-b px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-[11px] text-muted-foreground uppercase tracking-widest">
-                  Slides
-                </p>
-              </div>
-            </div>
-            <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-              {slides.length === 0 && (
-                <p className="text-[10px] text-muted-foreground">
-                  No slides yet. Click + to add one.
-                </p>
-              )}
-              {slides.map((slide, i) => (
-                <div
-                  className={`rounded border p-1 ${
-                    i === activeSlideIndex
-                      ? "border-primary/60 bg-primary/5"
-                      : "border-border/70 bg-background"
-                  }`}
-                  key={slide.id}
-                >
-                  <div className="mb-1 flex items-center gap-1">
-                    <span className="text-[10px] text-muted-foreground">
-                      Slide {i + 1}
-                    </span>
-                    {slides.length > 1 && (
-                      <button
-                        aria-label="Delete slide"
-                        className="ml-auto rounded p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => handleDeleteSlide(i)}
-                        type="button"
-                      >
-                        <Trash size={10} />
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    className={`flex aspect-video w-full items-center justify-center rounded border font-medium text-[10px] transition-colors ${
-                      i === activeSlideIndex
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted/60"
-                    }`}
-                    onClick={() => setActiveSlideIndex(i)}
-                    type="button"
-                  >
-                    <span>{i + 1}</span>
-                  </button>
-                  <button
-                    className="mt-1.5 flex w-full justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    onClick={() => openNotesDialog(i)}
-                    type="button"
-                  >
-                    <Badge
-                      className={`w-full justify-center gap-1 py-1 text-[10px] ${
-                        slide.speakerNotes?.trim()
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-destructive"
-                      }`}
-                      variant="outline"
-                    >
-                      <span>Notes</span>
-                    </Badge>
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="border-t p-2">
-              <button
-                className="flex w-full items-center justify-center gap-1 rounded border border-dashed py-1.5 text-[10px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                onClick={handleAddSlide}
-                type="button"
-              >
-                <Plus size={10} weight="bold" />
-                Add slide
-              </button>
-            </div>
-          </aside>
-
-          {/* Canvas */}
-          <div className="min-w-0 flex-1 overflow-hidden">
-            {slides.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-                <button
-                  className="rounded-md border px-4 py-2 hover:bg-muted"
-                  onClick={handleAddSlide}
-                  type="button"
-                >
-                  <Plus className="mb-1 inline" size={14} /> Add your first
-                  slide
-                </button>
-              </div>
-            ) : (
-              <LayoutCanvas
-                initialLayout={activeSlide?.canvasLayout ?? []}
-                key={activeSlide?.id ?? "empty"}
-                mdx={mdx}
-                notesPath={
-                  activeDeckId
-                    ? `/notes/${activeDeckId}?mode=window`
-                    : undefined
-                }
-                onLayoutChange={handleSlideLayoutChange}
-                qrPath={
-                  activeDeckId ? `/api/notes-qr/${activeDeckId}` : undefined
-                }
-                showSectionsSidebar
-                uploadedWidgets={deckWidgets.map((widget) => ({
-                  compiledJs: widget.compiledJs,
-                  componentName: widget.componentName,
-                }))}
-              />
-            )}
-          </div>
-        </div>
+        <WriteLayoutPane
+          activeDeckId={activeDeckId}
+          activeSlide={activeSlide}
+          activeSlideIndex={activeSlideIndex}
+          decks={decks}
+          deckWidgets={deckWidgets}
+          mdx={mdx}
+          onAddElement={handleAddElement}
+          onAddSlide={handleAddSlide}
+          onDeleteAllDecks={handleDeleteAllDecks}
+          onDeleteDeck={handleDeleteDeck}
+          onDeleteSlide={handleDeleteSlide}
+          onLayoutChange={handleSlideLayoutChange}
+          onOpenNotesDialog={openNotesDialog}
+          onRenameDeck={handleRenameDeck}
+          onSelectDeck={handleSelectDeck}
+          onSelectSlide={setActiveSlideIndex}
+          slides={slides}
+        />
       )}
 
       {/* Hidden file input shared across editor modes */}
@@ -1001,103 +778,26 @@ export default function WritePage() {
         type="file"
       />
 
-      <Dialog onOpenChange={setNotesDialogOpen} open={notesDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Slide notes</DialogTitle>
-            <DialogDescription>
-              Add presenter-only notes for slide {dialogSlideIndex + 1}.
-            </DialogDescription>
-          </DialogHeader>
-
-          {dialogSlide && (
-            <InputGroup className="h-auto">
-              <InputGroupAddon align="block-start" className="border-b">
-                <InputGroupButton
-                  aria-label="Clear notes"
-                  className="ml-auto"
-                  onClick={() =>
-                    handleSpeakerNotesChangeForSlide(dialogSlideIndex, "")
-                  }
-                  size="icon-xs"
-                  title="Clear notes"
-                  variant="outline"
-                >
-                  <X size={12} />
-                </InputGroupButton>
-                <InputGroupButton
-                  aria-label="Copy notes"
-                  onClick={copyNotesFromDialog}
-                  size="icon-xs"
-                  title="Copy notes"
-                  variant="outline"
-                >
-                  <Copy size={12} />
-                </InputGroupButton>
-                <InputGroupButton
-                  aria-label={
-                    dictatingNotes
-                      ? "Stop speech dictation"
-                      : "Start speech dictation"
-                  }
-                  disabled={!speechSupported}
-                  onClick={toggleNotesDictation}
-                  size="icon-xs"
-                  title={dictatingNotes ? "Stop dictation" : "Start dictation"}
-                  variant="outline"
-                >
-                  {dictatingNotes ? (
-                    <Spinner className="size-3.5" />
-                  ) : (
-                    <Microphone size={12} />
-                  )}
-                </InputGroupButton>
-              </InputGroupAddon>
-              <InputGroupTextarea
-                className="max-h-[400px] min-h-[220px] resize-none overflow-y-auto"
-                maxLength={NOTES_MAX_LENGTH}
-                onChange={(e) =>
-                  handleSpeakerNotesChangeForSlide(
-                    dialogSlideIndex,
-                    e.target.value
-                  )
-                }
-                placeholder="Write what you want to remember while presenting this slide..."
-                value={dialogSlide.speakerNotes ?? ""}
-              />
-              <InputGroupAddon align="block-end" className="border-t">
-                {notesSpeechError && (
-                  <InputGroupText className="text-destructive">
-                    {notesSpeechError}
-                  </InputGroupText>
-                )}
-                <InputGroupText
-                  className={
-                    !copiedNotes &&
-                    (dialogSlide.speakerNotes ?? "").length >=
-                      NOTES_MAX_LENGTH * 0.9
-                      ? "text-destructive"
-                      : undefined
-                  }
-                >
-                  {copiedNotes
-                    ? "Copied to clipboard"
-                    : `${(dialogSlide.speakerNotes ?? "").length} / ${NOTES_MAX_LENGTH}`}
-                </InputGroupText>
-                <InputGroupButton
-                  className="ml-auto"
-                  onClick={() => setNotesDialogOpen(false)}
-                  size="sm"
-                  variant="default"
-                >
-                  Done
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-          )}
-          <DialogFooter showCloseButton />
-        </DialogContent>
-      </Dialog>
+      <WriteSpeakerNotesDialog
+        copiedNotes={copiedNotes}
+        dictatingNotes={dictatingNotes}
+        notesDialogOpen={notesDialogOpen}
+        notesMaxLength={NOTES_MAX_LENGTH}
+        notesSpeechError={notesSpeechError}
+        onClearNotes={() =>
+          handleSpeakerNotesChangeForSlide(dialogSlideIndex, "")
+        }
+        onClose={() => setNotesDialogOpen(false)}
+        onCopyNotes={copyNotesFromDialog}
+        onNotesChange={(value) =>
+          handleSpeakerNotesChangeForSlide(dialogSlideIndex, value)
+        }
+        onNotesDialogOpenChange={setNotesDialogOpen}
+        onToggleDictation={toggleNotesDictation}
+        slide={dialogSlide}
+        slideIndexLabel={dialogSlideIndex}
+        speechSupported={speechSupported}
+      />
     </div>
   );
 }

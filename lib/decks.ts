@@ -6,13 +6,16 @@ import { deck as deckTable, deckWidget as deckWidgetTable } from "./db/schema";
 
 export interface CanvasBox {
 	id: string;
-	kind?: "section" | "separator" | "component" | "image" | "shape" | "text" | "page-number" | "timer" | "qr-code";
+	kind?: "section" | "separator" | "component" | "image" | "youtube" | "twitter" | "shape" | "text" | "page-number" | "timer" | "qr-code" | "url-qr";
 	sectionId?: string;
 	componentName?: string;
 	imageUrl?: string;
+	youtubeUrl?: string;
+	twitterUrl?: string;
 	shapeColor?: string;
 	shapeType?: "rect" | "circle";
 	staticText?: string;
+	customQrUrl?: string;
 	x: number;
 	y: number;
 	w: number;
@@ -43,20 +46,26 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
 		candidate.kind === "separator" ||
 		candidate.kind === "component" ||
 		candidate.kind === "image" ||
+		candidate.kind === "youtube" ||
+		candidate.kind === "twitter" ||
 		candidate.kind === "shape" ||
 		candidate.kind === "text" ||
 		candidate.kind === "page-number" ||
 		candidate.kind === "timer" ||
-		candidate.kind === "qr-code"
+		candidate.kind === "qr-code" ||
+		candidate.kind === "url-qr"
 			? candidate.kind
 			: undefined;
 	const isDecorative =
 		kind === "image" ||
+		kind === "youtube" ||
+		kind === "twitter" ||
 		kind === "shape" ||
 		kind === "text" ||
 		kind === "page-number" ||
 		kind === "timer" ||
-		kind === "qr-code";
+		kind === "qr-code" ||
+		kind === "url-qr";
 	const isSectionLike = !isDecorative && kind !== "separator" && kind !== "component";
 	const isComponentLike = kind === "component";
 	if (
@@ -84,9 +93,12 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
 		sectionId: candidate.sectionId,
 		componentName: candidate.componentName,
 		imageUrl: typeof candidate.imageUrl === "string" ? candidate.imageUrl : undefined,
+		youtubeUrl: typeof candidate.youtubeUrl === "string" ? candidate.youtubeUrl : undefined,
+		twitterUrl: typeof candidate.twitterUrl === "string" ? candidate.twitterUrl : undefined,
 		shapeColor: typeof candidate.shapeColor === "string" ? candidate.shapeColor : undefined,
 		shapeType: candidate.shapeType === "circle" ? "circle" : candidate.shapeType === "rect" ? "rect" : undefined,
 		staticText: typeof candidate.staticText === "string" ? candidate.staticText : undefined,
+		customQrUrl: typeof candidate.customQrUrl === "string" ? candidate.customQrUrl : undefined,
 		x: Math.max(0, Math.min(100, candidate.x)),
 		y: Math.max(0, Math.min(100, candidate.y)),
 		w: Math.max(10, Math.min(100, candidate.w)),
@@ -239,9 +251,20 @@ export async function listUserDecks(userId: string): Promise<Deck[]> {
 	return rows.map((row) => rowToDeck(row, widgetsByDeckId.get(row.id) ?? []));
 }
 
+const MAX_DECKS_PER_USER = 50;
+
 export async function saveDeck(
 	data: Omit<Deck, "id" | "createdAt" | "updatedAt" | "widgets"> & { id?: string },
 ): Promise<Deck> {
+	const existing = await db
+		.select({ id: deckTable.id })
+		.from(deckTable)
+		.where(eq(deckTable.userId, data.userId));
+
+	if (existing.length >= MAX_DECKS_PER_USER) {
+		throw new Error(`You've reached the ${MAX_DECKS_PER_USER}-deck limit. Delete an existing deck to create a new one.`);
+	}
+
 	const now = new Date();
 	const id = data.id ?? nanoid();
 	const slides = data.slides.map((s) => ({

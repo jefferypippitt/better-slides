@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "@phosphor-icons/react";
-import { useRouter } from "next/navigation";
+import { useTransitionRouter } from "next-view-transitions";
 import { useCallback } from "react";
 
 interface SlideChromeProps {
@@ -20,7 +20,7 @@ function getChannelName(syncEndpoint: string): string | null {
 }
 
 export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
-  const router = useRouter();
+  const router = useTransitionRouter();
 
   const handleEnd = useCallback(() => {
     if (syncEndpoint) {
