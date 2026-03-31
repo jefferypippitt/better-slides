@@ -14,6 +14,10 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
+  trustedOrigins: [
+    "https://better-slides.com",
+    "https://www.better-slides.com",
+  ],
   emailAndPassword: {
     enabled: true,
   },
