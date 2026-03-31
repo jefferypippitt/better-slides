@@ -57,9 +57,10 @@ export default function HeroSlide() {
               <h1 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-none tracking-tight">
                 Better Slides
               </h1>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="text-lg text-muted-foreground leading-relaxed">
                 Create beautiful presentations from Markdown, then upload
-                optional `.tsx` React widgets for interactive slides.
+                optional TypeScript files to add interactive components to any
+                slide.
               </p>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">

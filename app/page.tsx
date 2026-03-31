@@ -9,9 +9,9 @@ import SolutionSlide from "@/components/landing/solution-slide";
 import WorkflowSlide from "@/components/landing/workflow-slide";
 
 export const metadata: Metadata = {
-  title: "AI-Native Presentation Builder",
+  title: "Better Slides — MDX Presentation Builder",
   description:
-    "Build polished slides faster with AI assistance, live presentation mode, and synced speaker notes.",
+    "Build polished presentations in Markdown, embed live React widgets, and deliver with synced speaker notes on your phone.",
 };
 
 export default function LandingPage() {

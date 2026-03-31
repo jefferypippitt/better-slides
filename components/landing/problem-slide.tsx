@@ -3,33 +3,33 @@ import SlideBar from "./slide-bar";
 const PAIN_POINTS = [
   {
     num: "01",
-    title: "Slide building is tedious",
-    desc: "Pixel-pushing layouts by hand kills momentum when you should be shaping the story.",
+    title: "Drag-and-drop doesn't scale",
+    desc: "Google Slides and PowerPoint trap content in GUI editors — slow to build, painful to revise.",
   },
   {
     num: "02",
-    title: "Formatting becomes a black hole",
-    desc: "Fonts, spacing, and consistency checks quietly eat hours across every deck revision.",
+    title: "No support for live components",
+    desc: "Neither platform can render interactive charts, counters, or custom UI. You're limited to static images.",
   },
   {
     num: "03",
-    title: "Turning markdown ideas into decks is manual",
-    desc: "Teams keep copy-pasting notes into slide builders instead of working from one markdown source of truth.",
+    title: "Your notes are stuck on a second screen",
+    desc: "Presenter view in both tools requires a split display. There's no native way to use your phone.",
   },
   {
     num: "04",
-    title: "Presenting without notes is risky",
-    desc: "Speakers juggle memory, timing, and flow because notes are awkward to access on the go.",
+    title: "Formatting breaks on every revision",
+    desc: "One content change in PowerPoint or Google Slides means manually fixing layouts across every slide.",
   },
   {
     num: "05",
-    title: "From idea to first draft is too slow",
-    desc: "Most tools make iteration heavy, so shipping a clean first version takes far too long.",
+    title: "Versioning is a file attachment nightmare",
+    desc: '"final_v3_REAL.pptx" exists because both tools offer no real alternative to emailed attachments.',
   },
   {
     num: "06",
-    title: "Sharing and versioning are still messy",
-    desc: "Attachments, conflicting edits, and scattered copies create friction when teams collaborate.",
+    title: "Always starting from a blank canvas",
+    desc: "Your Markdown notes and docs are ignored. Both tools make you rebuild structure from scratch every time.",
   },
 ] as const;
 
@@ -50,10 +50,10 @@ export default function ProblemSlide() {
         </section>
 
         <section className="flex flex-1 items-center p-6 sm:p-8 lg:p-12 lg:pl-8">
-          <div className="grid w-full grid-cols-1 sm:grid-cols-2">
+          <div className="grid w-full grid-cols-1 border-border border-t border-l sm:grid-cols-2">
             {PAIN_POINTS.map((item) => (
               <article
-                className="flex items-center justify-center border border-border bg-background p-5 sm:p-6"
+                className="flex items-center justify-center border-border border-r border-b bg-background p-5 sm:p-6"
                 key={item.num}
               >
                 <div className="w-full text-left">

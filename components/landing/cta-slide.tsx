@@ -14,7 +14,7 @@ export default function CtaSlide() {
         <h2 className="font-bold text-[clamp(2.25rem,5.2vw,4.75rem)] leading-[1.05] tracking-tight">
           Ready to Present
         </h2>
-        <p className="max-w-md text-muted-foreground text-sm leading-relaxed">
+        <p className="max-w-md text-lg text-muted-foreground leading-relaxed">
           Create your first presentation in minutes. Free to start, no credit
           card required.
         </p>
