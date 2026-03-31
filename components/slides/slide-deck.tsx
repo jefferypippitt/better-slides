@@ -241,7 +241,6 @@ export function SlideDeck({
 
   const initializedRef = useRef(false);
 
-  // SSE stream — receives slide updates from the server (e.g. phone controlling presenter)
   useEffect(() => {
     if (!syncEndpoint) {
       return;
@@ -267,8 +266,7 @@ export function SlideDeck({
           return;
         }
 
-        const currentPage = getCurrentPage();
-        if (data.slide !== currentPage) {
+        if (data.slide !== projectedPageRef.current) {
           navigateToPage(data.slide).catch(() => {
             // ignore navigation errors
           });
@@ -279,7 +277,8 @@ export function SlideDeck({
     };
 
     return () => es.close();
-  }, [syncEndpoint, getCurrentPage, navigateToPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncEndpoint, navigateToPage]);
 
   // Keyboard navigation
   useEffect(() => {
