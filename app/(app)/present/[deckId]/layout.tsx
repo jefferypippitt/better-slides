@@ -38,7 +38,11 @@ export default async function PresentLayout({ children, params }: Props) {
       >
         {children}
       </SlideDeck>
-      <SlideChrome syncEndpoint={syncEndpoint} total={slideCount} />
+      <SlideChrome
+        deckId={deckId}
+        syncEndpoint={syncEndpoint}
+        total={slideCount}
+      />
     </>
   );
 }

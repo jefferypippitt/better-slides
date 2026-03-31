@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 export function DesktopNotesView({
   notes,
   syncEndpoint,
-  pollInterval = 1500,
   syncMode = "poll",
 }: NotesViewProps) {
   const {
@@ -25,7 +24,7 @@ export function DesktopNotesView({
     navigate,
     handleDisconnect,
     handleReconnect,
-  } = useNotesSync({ notes, syncEndpoint, pollInterval, syncMode });
+  } = useNotesSync({ notes, syncEndpoint, syncMode });
 
   if (ended) {
     return (

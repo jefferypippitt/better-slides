@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 
 export interface NotesViewProps {
   notes: (string | null)[];
-  pollInterval?: number;
   syncEndpoint: string;
   syncMode?: "poll" | "broadcast";
 }
@@ -14,7 +13,6 @@ export interface NotesViewProps {
 export function PhoneNotesView({
   notes,
   syncEndpoint,
-  pollInterval = 1500,
   syncMode = "poll",
 }: NotesViewProps) {
   const {
@@ -31,7 +29,7 @@ export function PhoneNotesView({
     navigate,
     handleDisconnect,
     handleReconnect,
-  } = useNotesSync({ notes, syncEndpoint, pollInterval, syncMode });
+  } = useNotesSync({ notes, syncEndpoint, syncMode });
 
   if (ended) {
     return (

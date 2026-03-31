@@ -1,19 +1,31 @@
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { deck, presenterPresence, presenterSync } from "@/lib/db/schema";
+import { deck } from "@/lib/db/schema";
 import { verifyPresenterToken } from "@/lib/presenter-token";
+import { redis } from "@/lib/redis";
 
-const PRESENCE_TTL_MS = 10_000;
+export const PRESENCE_TTL_MS = 10_000;
+const SYNC_TTL_S = 86_400;
 
-function getDeckId(request: NextRequest): string | null {
+export interface SyncState {
+  slide: number;
+  total: number;
+}
+
+export function syncKey(deckId: string): string {
+  return `sync:${deckId}`;
+}
+
+export function presenceKey(deckId: string): string {
+  return `presence:${deckId}`;
+}
+
+export function getDeckId(request: NextRequest): string | null {
   const deckId = request.nextUrl.searchParams.get("deckId");
-  if (!deckId) {
-    return null;
-  }
-  return deckId.trim() || null;
+  return deckId?.trim() || null;
 }
 
 async function canAccessDeck(userId: string, deckId: string): Promise<boolean> {
@@ -22,7 +34,6 @@ async function canAccessDeck(userId: string, deckId: string): Promise<boolean> {
     .from(deck)
     .where(and(eq(deck.id, deckId), eq(deck.userId, userId)))
     .limit(1);
-
   return rows[0]?.id !== undefined;
 }
 
@@ -35,7 +46,7 @@ async function getDeckOwnerId(deckId: string): Promise<string | null> {
   return rows[0]?.userId ?? null;
 }
 
-async function resolveOwnerUserId(
+export async function resolveOwnerUserId(
   request: NextRequest,
   deckId: string
 ): Promise<string | null> {
@@ -53,7 +64,7 @@ async function resolveOwnerUserId(
       }
     }
   } catch {
-    // auth.api.getSession may throw for cross-origin requests.
+    // auth.api.getSession may throw for cross-origin requests
   }
 
   return null;
@@ -73,36 +84,21 @@ export async function getPresenterSyncResponse(
   }
 
   const cid = request.nextUrl.searchParams.get("cid");
-  const now = new Date();
+  const now = Date.now();
 
   if (cid) {
-    await db
-      .insert(presenterPresence)
-      .values({ clientId: cid, deckId, lastSeen: now })
-      .onConflictDoUpdate({
-        target: presenterPresence.clientId,
-        set: { lastSeen: now, deckId },
-      });
+    await Promise.all([
+      redis.zadd(presenceKey(deckId), { score: now, member: cid }),
+      redis.zremrangebyscore(presenceKey(deckId), 0, now - PRESENCE_TTL_MS),
+    ]);
   }
 
-  const cutoff = new Date(now.getTime() - PRESENCE_TTL_MS);
-  const [{ viewers }] = await db
-    .select({ viewers: count() })
-    .from(presenterPresence)
-    .where(
-      and(
-        eq(presenterPresence.deckId, deckId),
-        gt(presenterPresence.lastSeen, cutoff)
-      )
-    );
+  const [state, viewers] = await Promise.all([
+    redis.get<SyncState>(syncKey(deckId)),
+    redis.zcard(presenceKey(deckId)),
+  ]);
 
-  const rows = await db
-    .select()
-    .from(presenterSync)
-    .where(eq(presenterSync.deckId, deckId))
-    .limit(1);
-  const state = rows[0];
-  if (state && state.slide === 0) {
+  if (state?.slide === 0) {
     return NextResponse.json({
       slide: 0,
       total: state.total,
@@ -110,6 +106,7 @@ export async function getPresenterSyncResponse(
       ended: true,
     });
   }
+
   return NextResponse.json(
     state
       ? { slide: state.slide, total: state.total, viewers }
@@ -130,22 +127,8 @@ export async function postPresenterSyncResponse(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  await db
-    .insert(presenterSync)
-    .values({
-      deckId,
-      slide: body.slide ?? 1,
-      total: body.total ?? 1,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: presenterSync.deckId,
-      set: {
-        slide: body.slide ?? 1,
-        total: body.total ?? 1,
-        updatedAt: new Date(),
-      },
-    });
+  const body = (await request.json()) as { slide?: number; total?: number };
+  const state: SyncState = { slide: body.slide ?? 1, total: body.total ?? 1 };
+  await redis.set(syncKey(deckId), state, { ex: SYNC_TTL_S });
   return NextResponse.json({ ok: true });
 }

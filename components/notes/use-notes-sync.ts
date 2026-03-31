@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseNotesSyncOptions {
   notes: (string | null)[];
-  pollInterval?: number;
   syncEndpoint: string;
   syncMode?: "poll" | "broadcast";
 }
@@ -25,6 +24,13 @@ interface NotesSyncData {
   viewers: number;
 }
 
+interface SyncPayload {
+  ended?: boolean;
+  slide: number;
+  total: number;
+  viewers?: number;
+}
+
 function generateId(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -42,10 +48,18 @@ function getOrCreateClientId(): string {
   return id;
 }
 
+function buildStreamUrl(syncEndpoint: string, cid: string | null): string {
+  const url = new URL(syncEndpoint, window.location.origin);
+  url.pathname = `${url.pathname}/stream`;
+  if (cid) {
+    url.searchParams.set("cid", cid);
+  }
+  return url.toString();
+}
+
 export function useNotesSync({
   notes,
   syncEndpoint,
-  pollInterval = 1500,
   syncMode = "poll",
 }: UseNotesSyncOptions): NotesSyncData {
   const [slideIndex, setSlideIndex] = useState(0);
@@ -59,39 +73,6 @@ export function useNotesSync({
   useEffect(() => {
     clientId.current = getOrCreateClientId();
   }, []);
-
-  const poll = useCallback(async () => {
-    const cid = clientId.current;
-    const url = cid
-      ? `${syncEndpoint}&cid=${encodeURIComponent(cid)}`
-      : syncEndpoint;
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) {
-        return;
-      }
-      const data = (await res.json()) as {
-        slide: number;
-        total: number;
-        viewers?: number;
-        ended?: boolean;
-      };
-      if (data.ended) {
-        setEnded(true);
-        setActive(false);
-        setConnected(false);
-        return;
-      }
-      setTotal(data.total);
-      setConnected(true);
-      setSlideIndex(data.slide - 1);
-      if (data.viewers !== undefined) {
-        setViewers(data.viewers);
-      }
-    } catch {
-      setConnected(false);
-    }
-  }, [syncEndpoint]);
 
   const extractDeckId = useCallback((): string | null => {
     try {
@@ -113,18 +94,47 @@ export function useNotesSync({
     return `better-slides-notes-${deckId}`;
   }, [extractDeckId]);
 
+  // SSE-based sync for poll mode
   useEffect(() => {
     if (syncMode !== "poll") {
       return;
     }
     if (!active) {
+      setConnected(false);
       return;
     }
-    poll();
-    const id = setInterval(poll, pollInterval);
-    return () => clearInterval(id);
-  }, [active, poll, pollInterval, syncMode]);
 
+    const cid = clientId.current;
+    const url = buildStreamUrl(syncEndpoint, cid);
+    const es = new EventSource(url);
+
+    es.onopen = () => setConnected(true);
+    es.onerror = () => setConnected(false);
+    es.onmessage = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as SyncPayload;
+        if (data.ended) {
+          setEnded(true);
+          setActive(false);
+          setConnected(false);
+          es.close();
+          return;
+        }
+        setTotal(data.total);
+        setConnected(true);
+        setSlideIndex(data.slide - 1);
+        if (typeof data.viewers === "number") {
+          setViewers(data.viewers);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    return () => es.close();
+  }, [active, syncEndpoint, syncMode]);
+
+  // BroadcastChannel sync for broadcast mode (same device / window)
   useEffect(() => {
     if (syncMode !== "broadcast") {
       return;
@@ -213,7 +223,7 @@ export function useNotesSync({
           body: JSON.stringify({ slide: clamped + 1, total }),
         });
       } catch {
-        // Ignore network errors for a smoother notes experience.
+        // ignore network errors for a smoother notes experience
       }
     },
     [active, getChannelName, syncEndpoint, syncMode, total]

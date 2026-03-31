@@ -2,7 +2,7 @@
 
 import { nanoid } from "nanoid";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -105,6 +105,7 @@ function newSlide(): SlideLayout {
 
 export default function WritePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<"editor" | "layout">("editor");
   const [editorSubView, setEditorSubView] = useState<"text" | "outline">(
     "text"
@@ -137,40 +138,7 @@ export default function WritePage() {
     null
   );
 
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      return;
-    }
-    initialLoadDone.current = true;
-    listDecksAction()
-      .then((data) => {
-        setDecks(data);
-        if (data.length > 0) {
-          const firstDeck = data[0];
-          const mdxContent =
-            firstDeck.mdx.trim().length > 0 ? firstDeck.mdx : DEFAULT_DECK_MDX;
-          const deckTitle =
-            firstDeck.title.trim().length > 0
-              ? firstDeck.title
-              : DEFAULT_DECK_TITLE;
-          setActiveDeckId(firstDeck.id);
-          setMdx(mdxContent);
-          setTitle(deckTitle);
-          setSlides(firstDeck.slides);
-          setDeckWidgets(firstDeck.widgets);
-          setActiveSlideIndex(0);
-        }
-      })
-      .catch((_err: unknown) => {
-        // ignore initial load errors
-      });
-  }, []);
-
-  useEffect(() => {
-    setSpeechSupported(getSpeechRecognitionCtor() !== null);
-  }, []);
-
-  function loadDeck(deck: Deck) {
+  const loadDeck = useCallback((deck: Deck) => {
     const mdxContent = deck.mdx.trim().length > 0 ? deck.mdx : DEFAULT_DECK_MDX;
     const deckTitle =
       deck.title.trim().length > 0 ? deck.title : DEFAULT_DECK_TITLE;
@@ -180,7 +148,35 @@ export default function WritePage() {
     setSlides(deck.slides);
     setDeckWidgets(deck.widgets);
     setActiveSlideIndex(0);
-  }
+  }, []);
+
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      return;
+    }
+    initialLoadDone.current = true;
+    const preferredDeckId = searchParams.get("deck");
+    listDecksAction()
+      .then((data) => {
+        setDecks(data);
+        if (data.length > 0) {
+          const match = preferredDeckId
+            ? data.find((d) => d.id === preferredDeckId)
+            : undefined;
+          loadDeck(match ?? data[0]);
+        }
+        if (preferredDeckId) {
+          router.replace("/write", { scroll: false });
+        }
+      })
+      .catch((_err: unknown) => {
+        // ignore initial load errors
+      });
+  }, [loadDeck, router, searchParams]);
+
+  useEffect(() => {
+    setSpeechSupported(getSpeechRecognitionCtor() !== null);
+  }, []);
 
   function handleSelectDeck(id: string) {
     const deck = decks.find((d) => d.id === id);

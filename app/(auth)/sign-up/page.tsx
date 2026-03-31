@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SignUpForm } from "@/components/auth/sign-up-form";
+
+export const metadata: Metadata = {
+  title: "Sign Up",
+  description: "Create your Better Slides account.",
+};
 
 export default function SignUpPage() {
   return (

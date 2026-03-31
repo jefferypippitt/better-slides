@@ -16,7 +16,6 @@ interface SlideDeckProps {
   basePath?: string;
   children: ReactNode;
   className?: string;
-  pollInterval?: number;
   showCounter?: boolean;
   showProgress?: boolean;
   slides: ReactNode[];
@@ -30,7 +29,6 @@ const INTERACTIVE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 export function SlideDeck({
   children,
   basePath = "/slides",
-  pollInterval = 1500,
   slides,
   syncEndpoint,
 }: SlideDeckProps) {
@@ -113,8 +111,6 @@ export function SlideDeck({
     }).catch(() => {
       // ignore sync errors
     });
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [broadcastState, syncEndpoint, getCurrentPage, slides.length]);
 
   useEffect(() => {
@@ -245,44 +241,45 @@ export function SlideDeck({
 
   const initializedRef = useRef(false);
 
-  const pollRemote = useCallback(async () => {
+  // SSE stream — receives slide updates from the server (e.g. phone controlling presenter)
+  useEffect(() => {
     if (!syncEndpoint) {
       return;
     }
-    try {
-      const res = await fetch(syncEndpoint, { cache: "no-store" });
-      if (!res.ok) {
-        return;
-      }
-      const data = (await res.json()) as {
-        slide: number;
-        total: number;
-        ended?: boolean;
-      };
-      if (data.ended) {
-        return;
-      }
-      const remoteSlide = data.slide;
 
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        return;
-      }
+    const url = new URL(syncEndpoint, window.location.origin);
+    url.pathname = `${url.pathname}/stream`;
+    const es = new EventSource(url.toString());
 
-      const currentPage = getCurrentPage();
-      if (remoteSlide !== currentPage) {
-        await navigateToPage(remoteSlide);
-      }
-    } catch {
-      // ignore poll errors
-    }
-  }, [getCurrentPage, navigateToPage, syncEndpoint]);
+    es.onmessage = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as {
+          slide: number;
+          total: number;
+          ended?: boolean;
+        };
+        if (data.ended) {
+          return;
+        }
 
-  useEffect(() => {
-    pollRemote();
-    const id = setInterval(pollRemote, pollInterval);
-    return () => clearInterval(id);
-  }, [pollRemote, pollInterval]);
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          return;
+        }
+
+        const currentPage = getCurrentPage();
+        if (data.slide !== currentPage) {
+          navigateToPage(data.slide).catch(() => {
+            // ignore navigation errors
+          });
+        }
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    return () => es.close();
+  }, [syncEndpoint, getCurrentPage, navigateToPage]);
 
   // Keyboard navigation
   useEffect(() => {

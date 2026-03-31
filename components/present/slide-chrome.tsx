@@ -5,6 +5,7 @@ import { useTransitionRouter } from "next-view-transitions";
 import { useCallback } from "react";
 
 interface SlideChromeProps {
+  deckId: string;
   syncEndpoint?: string;
   total: number;
 }
@@ -19,7 +20,7 @@ function getChannelName(syncEndpoint: string): string | null {
   }
 }
 
-export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
+export function SlideChrome({ deckId, total, syncEndpoint }: SlideChromeProps) {
   const router = useTransitionRouter();
 
   const handleEnd = useCallback(() => {
@@ -37,8 +38,9 @@ export function SlideChrome({ total, syncEndpoint }: SlideChromeProps) {
         channel.close();
       }
     }
-    router.push("/the-end");
-  }, [router, syncEndpoint, total]);
+    const q = new URLSearchParams({ deck: deckId });
+    router.push(`/write?${q.toString()}`);
+  }, [deckId, router, syncEndpoint, total]);
 
   return (
     <>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Tweet } from "react-tweet";
@@ -53,6 +54,31 @@ interface RenderCanvasBoxArgs {
 
 interface Props {
   params: Promise<{ deckId: string; page: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { deckId, page } = await params;
+  const deck = await getAuthorizedDeckForPresent(deckId);
+  if (!deck) {
+    return {
+      title: "Presentation",
+      description: "Present your deck in full-screen mode.",
+    };
+  }
+
+  const totalSlides =
+    deck.slides.length > 0
+      ? deck.slides.length
+      : parseMarkdownSections(deck.mdx).length;
+  const requestedSlide = Number.parseInt(page, 10);
+  const slideNumber =
+    Number.isFinite(requestedSlide) && requestedSlide > 0 ? requestedSlide : 1;
+  const boundedSlide = Math.min(slideNumber, Math.max(totalSlides, 1));
+
+  return {
+    title: `${deck.title} - Slide ${boundedSlide}`,
+    description: `Presenting ${deck.title} (${boundedSlide} of ${Math.max(totalSlides, 1)}).`,
+  };
 }
 
 function getTextStyleClasses(textStyle: "title" | "subtitle" | "body"): string {
