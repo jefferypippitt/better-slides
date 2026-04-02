@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ViewTransitions } from "next-view-transitions";
@@ -108,6 +109,7 @@ export default function RootLayout({
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
           </ThemeProvider>
+          <Analytics />
         </body>
       </html>
     </ViewTransitions>
