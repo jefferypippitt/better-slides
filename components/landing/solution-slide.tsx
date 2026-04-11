@@ -329,7 +329,7 @@ export default function SolutionSlide() {
       <SlideBar left="03 / 07" right="THE SOLUTION" />
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-6 p-6 sm:p-8">
-        <h2 className="text-center font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-tight tracking-tight">
+        <h2 className="text-center font-semibold text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.08] tracking-[-0.025em]">
           Markdown in. <span className="opacity-35">Done.</span>
         </h2>
 

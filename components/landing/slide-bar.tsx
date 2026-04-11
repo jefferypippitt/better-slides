@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
+/** Shared by slide index and section title so both read as one system (tracking matches editor chrome). */
+const slideBarLabelClassName =
+  "font-mono text-[11px] text-foreground uppercase tracking-[0.12em]";
+
 interface SlideBarProps {
   center?: boolean;
   left: string;
@@ -20,17 +24,11 @@ export default function SlideBar({
       } ${position === "top" ? "border-b" : "border-t"}`}
     >
       {center ? (
-        <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
-          {right}
-        </span>
+        <span className={slideBarLabelClassName}>{right}</span>
       ) : (
         <>
-          <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
-            {left}
-          </span>
-          <span className="font-medium font-mono text-[11px] text-foreground tracking-[0.15em]">
-            {right}
-          </span>
+          <span className={slideBarLabelClassName}>{left}</span>
+          <span className={slideBarLabelClassName}>{right}</span>
         </>
       )}
     </div>

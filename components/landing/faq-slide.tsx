@@ -6,24 +6,36 @@ import SlideBar from "./slide-bar";
 
 const FAQS = [
   {
-    q: "Which file formats are supported?",
-    a: "Deck content is markdown-first: upload `.md` and `.mdx`. For interactive slides, you can also upload `.tsx` React widgets and use them inside MDX.",
+    q: "Is there a free plan?",
+    a: "Yes. You can create and present decks for free with no card required. Some advanced features may be gated later on, but the core always stays free.",
   },
   {
     q: "Do I need to know how to code?",
-    a: "No. Write plain Markdown and you get beautiful slides instantly. Code knowledge unlocks extras like custom React widgets, but it's entirely optional.",
+    a: "Not at all. Write plain Markdown and you get beautiful slides straight away. The code side is there if you want it, but it is entirely optional.",
+  },
+  {
+    q: "How do I present? Is it fullscreen?",
+    a: "Yes. Open any deck and hit present to go fullscreen. Your notes and slide controls stay visible the whole time.",
+  },
+  {
+    q: "Can I share a deck with someone else?",
+    a: "Anyone with the link can view and navigate through your slides without needing an account. Only the deck owner can make changes.",
+  },
+  {
+    q: "Which file formats are supported?",
+    a: "Your content lives in Markdown. Upload .md or .mdx files to get started, and .tsx files for any slides where you want interactive elements.",
   },
   {
     q: "How does the mobile notes feature work?",
-    a: "Scan the QR code shown during a presentation to pair your phone. Presenter notes sync in real time — only you see them.",
+    a: "During a presentation, scan the QR code on screen with your phone. Your notes stay in sync with the current slide and only you can see them.",
   },
   {
     q: "Can I embed custom React components?",
-    a: "Yes. Drop in .tsx widget files from the editor using MDX. They render live inside any slide without any build step.",
+    a: "Yes. Drop .tsx files into the editor and use them in any slide. They render live with no setup needed.",
   },
   {
     q: "Is my data private?",
-    a: "Decks are stored privately and tied to your account. Other users cannot access them. Note that deck content is not encrypted at rest, so avoid uploading sensitive or confidential information.",
+    a: "Your decks are private to your account and no one else can access them. That said, content is not encrypted at rest so avoid storing anything sensitive.",
   },
 ] as const;
 
@@ -37,10 +49,10 @@ export default function FaqSlide() {
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
         {/* Left: title */}
         <section className="flex flex-1 items-center justify-center p-6 sm:p-8 lg:p-12">
-          <h2 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-[1.06] tracking-tight">
-            Still
+          <h2 className="font-semibold text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.08] tracking-[-0.025em]">
+            Got
             <br />
-            <span className="opacity-35">curious?</span>
+            <span className="opacity-35">questions?</span>
           </h2>
         </section>
 

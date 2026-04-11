@@ -45,7 +45,7 @@ export default function WorkflowSlide() {
           {/* Left: content */}
           <div className="flex flex-1 items-center justify-center border-border border-b p-6 sm:p-8 lg:justify-end lg:border-b-0 lg:p-12 lg:pr-8">
             <div className="flex flex-col items-start gap-7">
-              <h2 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-[1.05] tracking-tight">
+              <h2 className="font-semibold text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.08] tracking-[-0.025em]">
                 Write once.
                 <br />
                 <span className="opacity-35">Present everywhere.</span>
@@ -57,8 +57,9 @@ export default function WorkflowSlide() {
                     className="mt-0.5 shrink-0 text-foreground/75"
                     size={16}
                   />
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    Write in markdown, embed React components anywhere.
+                  <p className="text-base text-muted-foreground leading-relaxed">
+                    Write in Markdown and embed React components wherever you
+                    need them.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -66,8 +67,9 @@ export default function WorkflowSlide() {
                     className="mt-0.5 shrink-0 text-foreground/75"
                     size={16}
                   />
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    We parse your MDX and render slides instantly.
+                  <p className="text-base text-muted-foreground leading-relaxed">
+                    We take it from there and turn your content into slides
+                    right away.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -75,8 +77,9 @@ export default function WorkflowSlide() {
                     className="mt-0.5 shrink-0 text-foreground/75"
                     size={16}
                   />
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    Full screen presentation with text and controls together.
+                  <p className="text-base text-muted-foreground leading-relaxed">
+                    Go fullscreen when you're ready. Notes and controls stay
+                    with you.
                   </p>
                 </div>
               </div>
@@ -86,9 +89,9 @@ export default function WorkflowSlide() {
           {/* Mobile: simple step list */}
           <div className="flex flex-col gap-3 border-border border-t p-6 sm:hidden">
             {[
-              "Write slides in Markdown, embed React components anywhere.",
-              "We parse your MDX and render slides instantly.",
-              "Present full screen with notes and controls together.",
+              "Write in Markdown and embed React components wherever you need them.",
+              "We take it from there and turn your content into slides right away.",
+              "Go fullscreen when you're ready. Notes and controls stay right there.",
             ].map((step, i) => (
               <div className="flex items-start gap-3" key={step}>
                 <span className="mt-0.5 shrink-0 font-mono text-[11px] text-muted-foreground/50">

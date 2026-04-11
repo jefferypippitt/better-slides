@@ -52,25 +52,24 @@ export default function HeroSlide() {
         {/* Unified container — both sides share the same padding axis */}
         <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
           {/* Left: content */}
-          <div className="flex flex-1 items-center justify-center border-border border-b p-6 sm:p-8 lg:justify-end lg:border-b-0 lg:p-12 lg:pr-8">
-            <div className="flex flex-col items-start gap-4">
-              <h1 className="font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-none tracking-tight">
+          <div className="flex min-w-0 flex-1 items-center justify-center border-border border-b p-6 sm:p-8 lg:justify-end lg:border-b-0 lg:p-12 lg:pr-8">
+            <div className="flex w-full max-w-2xl flex-col items-start gap-3 sm:gap-4">
+              <h1 className="font-semibold text-[clamp(2.25rem,4.6vw,3.75rem)] text-foreground leading-[1.08] tracking-[-0.025em]">
                 Better Slides
               </h1>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                Create beautiful presentations from Markdown, then upload
-                optional TypeScript files to add interactive components to any
-                slide.
+              <p className="text-base text-muted-foreground leading-relaxed sm:text-lg">
+                Write your slides in Markdown and drop in TypeScript components
+                wherever you need something interactive.
               </p>
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row">
                 <Link href="/sign-up">
-                  <Button className="gap-2" size="lg">
+                  <Button className="gap-2 font-medium" size="lg">
                     Get started <ArrowRightIcon size={15} />
                   </Button>
                 </Link>
                 <Link href="/sign-in">
-                  <Button size="lg" variant="outline">
+                  <Button className="font-medium" size="lg" variant="outline">
                     Sign in
                   </Button>
                 </Link>
@@ -79,7 +78,7 @@ export default function HeroSlide() {
           </div>
 
           {/* Right: canvas - larger on lg */}
-          <div className="relative hidden flex-1 items-center justify-start p-6 sm:p-8 lg:flex lg:p-12 lg:pl-8">
+          <div className="relative hidden min-w-0 flex-1 items-center justify-start p-6 sm:p-8 lg:flex lg:p-12 lg:pl-8">
             <div className="relative h-[520px] w-full max-w-[580px] overflow-hidden border border-border bg-card p-4">
               <div className="relative mt-3 grid h-[440px] grid-cols-[1.2fr_0.75fr_1fr]">
                 <div className="relative flex flex-col overflow-hidden border border-border bg-background p-3">
@@ -142,12 +141,6 @@ export default function HeroSlide() {
                       ))}
                     </div>
                   </div>
-
-                  <p className="mt-2.5 text-center font-mono text-[9px] text-muted-foreground leading-relaxed">
-                    scan on phone
-                    <br />
-                    auto sync notes
-                  </p>
                 </div>
 
                 <div className="relative border border-border bg-background p-2">
@@ -325,6 +318,7 @@ export default function HeroSlide() {
       </div>
 
       <SlideBar
+        center
         left=""
         position="bottom"
         right={

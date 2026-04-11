@@ -16,22 +16,22 @@ const FEATURES = [
   {
     icon: <CodeSimpleIcon size={24} weight="light" />,
     title: "MDX Editor",
-    desc: "Write slides in Markdown and embed live React components for custom visuals.",
+    desc: "Write slides in Markdown and embed React components wherever you need a custom visual.",
   },
   {
     icon: <UploadSimpleIcon size={24} weight="light" />,
-    title: "TSX Widget Uploads",
-    desc: "Upload `.tsx` files and render interactive widgets — charts, counters, toggles, etc.",
+    title: "Component Uploads",
+    desc: "Upload .tsx files and drop in interactive widgets. Charts, counters, toggles and more.",
   },
   {
     icon: <DeviceMobileIcon size={24} weight="light" />,
     title: "Mobile Notes View",
-    desc: "Read speaker notes on your phone, synced to the current slide in real-time.",
+    desc: "Read speaker notes on your phone, synced to the current slide in real time.",
   },
   {
     icon: <ShapesIcon size={24} weight="light" />,
-    title: "Built-in Elements",
-    desc: "Separators, images, shapes, emoji, timers, social embeds, etc.",
+    title: "Slide Elements",
+    desc: "Separators, images, shapes, emoji, timers, social embeds and more ready to use.",
   },
   {
     icon: <ArrowsOutCardinalIcon size={24} weight="light" />,
@@ -41,17 +41,17 @@ const FEATURES = [
   {
     icon: <DeviceMobileCameraIcon size={24} weight="light" />,
     title: "QR Connect",
-    desc: "Scan to join as a remote. Multiple presenters can connect to the same deck simultaneously.",
+    desc: "Scan to connect your phone. Multiple presenters can join the same deck at the same time.",
   },
   {
     icon: <ListChecksIcon size={24} weight="light" />,
     title: "Precision Editing Tools",
-    desc: "Grid snapping, center guides, and quick undo for pixel-accurate layout control.",
+    desc: "Grid snapping, center guides, and quick undo for pixel accurate layout control.",
   },
   {
     icon: <ArrowSquareOutIcon size={24} weight="light" />,
     title: "1:1 Stage Preview",
-    desc: "Design on a 16:9 canvas that mirrors the live stage. One click to present.",
+    desc: "Design on a canvas that mirrors the live stage. One click to present.",
   },
 ] as const;
 
@@ -75,7 +75,7 @@ export default function FeaturesSlide() {
       <SlideBar left="05 / 07" right="FEATURES" />
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-6 lg:gap-6 lg:p-8">
-        <h2 className="text-center font-bold text-[clamp(2.25rem,4.8vw,4.25rem)] leading-tight tracking-tight">
+        <h2 className="text-center font-semibold text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.08] tracking-[-0.025em]">
           Everything you need.
         </h2>
 

@@ -11,12 +11,12 @@ export default function CtaSlide() {
       <SlideBar left="07 / 07" right="GET STARTED" />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center lg:gap-7 lg:p-8">
-        <h2 className="font-bold text-[clamp(2.25rem,5.2vw,4.75rem)] leading-[1.05] tracking-tight">
+        <h2 className="font-semibold text-[clamp(2.5rem,5vw,4.5rem)] leading-[1.08] tracking-[-0.025em]">
           Ready to Present
         </h2>
-        <p className="max-w-md text-lg text-muted-foreground leading-relaxed">
-          Create your first presentation in minutes. Free to start, no credit
-          card required.
+        <p className="max-w-md text-base text-muted-foreground leading-relaxed sm:text-lg">
+          Make your first deck in minutes. It is free to get started and no card
+          is needed.
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row">
