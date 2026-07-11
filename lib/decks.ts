@@ -289,6 +289,7 @@ export async function saveDeck(
 
 export async function updateDeck(
 	deckId: string,
+	userId: string,
 	updates: Partial<Pick<Deck, "title" | "mdx" | "slides">>,
 ): Promise<Deck | null> {
 	const set: Partial<DeckRow> & { updatedAt: Date } = {
@@ -307,7 +308,7 @@ export async function updateDeck(
 	const rows = await db
 		.update(deckTable)
 		.set(set)
-		.where(eq(deckTable.id, deckId))
+		.where(and(eq(deckTable.id, deckId), eq(deckTable.userId, userId)))
 		.returning();
   const row = rows[0];
   if (!row) {
@@ -317,8 +318,8 @@ export async function updateDeck(
 	return rowToDeck(row, widgets.get(row.id) ?? []);
 }
 
-export async function deleteDeck(deckId: string, _userId: string): Promise<void> {
-	await db.delete(deckTable).where(eq(deckTable.id, deckId));
+export async function deleteDeck(deckId: string, userId: string): Promise<void> {
+	await db.delete(deckTable).where(and(eq(deckTable.id, deckId), eq(deckTable.userId, userId)));
 }
 
 export async function upsertDeckWidget(input: {

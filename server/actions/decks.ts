@@ -97,7 +97,7 @@ export async function updateDeckAction(
     mdx: updates.mdx,
     slides: updates.slides,
   });
-  const updated = await updateDeck(deckId, updates);
+  const updated = await updateDeck(deckId, session.user.id, updates);
   if (!updated) {
     throw new Error("Update failed");
   }
