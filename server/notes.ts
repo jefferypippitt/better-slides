@@ -16,7 +16,7 @@ export async function getNotesPageData(
 ): Promise<NotesPageData | null> {
   const hasValidPresenterToken =
     typeof presenterToken === "string" &&
-    verifyPresenterToken(presenterToken, deckId);
+    verifyPresenterToken(presenterToken, deckId, "notes");
 
   if (hasValidPresenterToken) {
     const deck = await getDeck(deckId);

@@ -69,7 +69,7 @@ export async function buildNotesQrResponse(
   }
 
   const baseUrl = resolveBaseUrl(request);
-  const token = createPresenterToken(deckId);
+  const token = createPresenterToken(deckId, "notes");
   const notesUrl = `${baseUrl}/notes/${deckId}?pt=${encodeURIComponent(token)}`;
   const svg = await QRCode.toString(notesUrl, {
     errorCorrectionLevel: "M",

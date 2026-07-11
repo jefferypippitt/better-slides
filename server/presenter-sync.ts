@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deck } from "@/lib/db/schema";
+import type { PresenterTokenScope } from "@/lib/presenter-token";
 import { verifyPresenterToken } from "@/lib/presenter-token";
 import { redis } from "@/lib/redis";
 
@@ -48,10 +49,14 @@ async function getDeckOwnerId(deckId: string): Promise<string | null> {
 
 export async function resolveOwnerUserId(
   request: NextRequest,
-  deckId: string
+  deckId: string,
+  requiredScope: PresenterTokenScope
 ): Promise<string | null> {
   const token = request.nextUrl.searchParams.get("pt");
-  if (typeof token === "string" && verifyPresenterToken(token, deckId)) {
+  if (
+    typeof token === "string" &&
+    verifyPresenterToken(token, deckId, requiredScope)
+  ) {
     return getDeckOwnerId(deckId);
   }
 
@@ -78,7 +83,7 @@ export async function getPresenterSyncResponse(
     return NextResponse.json({ error: "Missing deckId" }, { status: 400 });
   }
 
-  const ownerUserId = await resolveOwnerUserId(request, deckId);
+  const ownerUserId = await resolveOwnerUserId(request, deckId, "notes");
   if (!ownerUserId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -122,7 +127,7 @@ export async function postPresenterSyncResponse(
     return NextResponse.json({ error: "Missing deckId" }, { status: 400 });
   }
 
-  const ownerUserId = await resolveOwnerUserId(request, deckId);
+  const ownerUserId = await resolveOwnerUserId(request, deckId, "control");
   if (!ownerUserId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

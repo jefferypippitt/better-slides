@@ -3,9 +3,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const TOKEN_SEPARATOR = ".";
 const DEFAULT_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+export type PresenterTokenScope = "notes" | "control";
+
 interface PresenterTokenPayload {
   deckId: string;
   exp: number;
+  scope: PresenterTokenScope;
 }
 
 function getSigningSecret(): string {
@@ -30,17 +33,26 @@ function signPayload(payloadEncoded: string): string {
     .digest("base64url");
 }
 
-export function createPresenterToken(deckId: string, ttlMs = DEFAULT_TTL_MS): string {
+export function createPresenterToken(
+  deckId: string,
+  scope: PresenterTokenScope,
+  ttlMs = DEFAULT_TTL_MS
+): string {
   const payload: PresenterTokenPayload = {
     deckId,
     exp: Date.now() + ttlMs,
+    scope,
   };
   const payloadEncoded = toBase64Url(JSON.stringify(payload));
   const signature = signPayload(payloadEncoded);
   return `${payloadEncoded}${TOKEN_SEPARATOR}${signature}`;
 }
 
-export function verifyPresenterToken(token: string, deckId: string): boolean {
+export function verifyPresenterToken(
+  token: string,
+  deckId: string,
+  requiredScope: PresenterTokenScope
+): boolean {
   const [payloadEncoded, providedSignature] = token.split(TOKEN_SEPARATOR);
   if (!payloadEncoded || !providedSignature) {
     return false;
@@ -65,6 +77,12 @@ export function verifyPresenterToken(token: string, deckId: string): boolean {
   }
   if (typeof payload.exp !== "number" || payload.exp <= Date.now()) {
     return false;
+  }
+  if (payload.scope !== "notes" && payload.scope !== "control") {
+    return false;
+  }
+  if (requiredScope === "control") {
+    return payload.scope === "control";
   }
   return true;
 }

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "Missing deckId" }, { status: 400 });
   }
 
-  const ownerUserId = await resolveOwnerUserId(request, deckId);
+  const ownerUserId = await resolveOwnerUserId(request, deckId, "notes");
   if (!ownerUserId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
