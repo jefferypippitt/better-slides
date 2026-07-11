@@ -29,6 +29,12 @@ export function getDeckId(request: NextRequest): string | null {
   return deckId?.trim() || null;
 }
 
+function isValidSyncField(value: unknown, minimum: number): value is number {
+  return (
+    typeof value === "number" && Number.isInteger(value) && value >= minimum
+  );
+}
+
 async function canAccessDeck(userId: string, deckId: string): Promise<boolean> {
   const rows = await db
     .select({ id: deck.id })
@@ -132,8 +138,28 @@ export async function postPresenterSyncResponse(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as { slide?: number; total?: number };
-  const state: SyncState = { slide: body.slide ?? 1, total: body.total ?? 1 };
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { slide, total } = (body ?? {}) as {
+    slide?: unknown;
+    total?: unknown;
+  };
+  if (!(isValidSyncField(slide, 0) && isValidSyncField(total, 1))) {
+    return NextResponse.json(
+      {
+        error:
+          "slide must be a non-negative integer and total must be a positive integer",
+      },
+      { status: 400 }
+    );
+  }
+
+  const state: SyncState = { slide, total };
   await redis.set(syncKey(deckId), state, { ex: SYNC_TTL_S });
   return NextResponse.json({ ok: true });
 }
