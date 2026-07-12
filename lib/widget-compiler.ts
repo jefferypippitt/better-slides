@@ -13,9 +13,11 @@ const DISALLOWED_PATTERNS = [
 const COMPONENT_DECLARATION_RE =
   /export\s+default\s+function\s+([A-Z][A-Za-z0-9]*)\s*\(/;
 
+const NON_ALPHANUMERIC_RE = /[^a-zA-Z0-9]/;
+
 export function toPascalCase(input: string): string {
   return input
-    .split(/[^a-zA-Z0-9]/)
+    .split(NON_ALPHANUMERIC_RE)
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join("");

@@ -1,16 +1,21 @@
 import type { Deck } from "@/lib/decks";
 import { parseMarkdownSections } from "@/lib/sections";
 
+const HEADING_LINE_RE = /^#{1,6}\s+/;
+
 function stripHeadingLine(markdown: string): string {
   const lines = markdown.split("\n");
   const first = lines[0]?.trimStart() ?? "";
-  if (/^#{1,6}\s+/.test(first)) {
+  if (HEADING_LINE_RE.test(first)) {
     return lines.slice(1).join("\n").trim();
   }
   return markdown.trim();
 }
 
-function summarizeMarkdownSlide(markdown: string, index: number): string | null {
+function summarizeMarkdownSlide(
+  markdown: string,
+  index: number
+): string | null {
   const raw = markdown.trim();
   if (!raw) {
     return null;
@@ -63,9 +68,13 @@ export function getSpeakerNotesForDeck(deck: Deck): (string | null)[] {
       sectionById.set(`s${index}-${section.id.slice(0, 30)}`, section.heading);
     }
 
-    return deck.slides.map((_, index) => summarizeCanvasSlide(deck, index, sectionById));
+    return deck.slides.map((_, index) =>
+      summarizeCanvasSlide(deck, index, sectionById)
+    );
   }
 
   const sections = parseMarkdownSections(deck.mdx);
-  return sections.map((section, index) => summarizeMarkdownSlide(section.content, index));
+  return sections.map((section, index) =>
+    summarizeMarkdownSlide(section.content, index)
+  );
 }

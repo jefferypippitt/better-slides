@@ -54,20 +54,25 @@ export function verifyPresenterToken(
   requiredScope: PresenterTokenScope
 ): boolean {
   const [payloadEncoded, providedSignature] = token.split(TOKEN_SEPARATOR);
-  if (!payloadEncoded || !providedSignature) {
+  if (!(payloadEncoded && providedSignature)) {
     return false;
   }
 
   const expectedSignature = signPayload(payloadEncoded);
   const provided = Buffer.from(providedSignature);
   const expected = Buffer.from(expectedSignature);
-  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+  if (
+    provided.length !== expected.length ||
+    !timingSafeEqual(provided, expected)
+  ) {
     return false;
   }
 
   let payload: PresenterTokenPayload;
   try {
-    payload = JSON.parse(fromBase64Url(payloadEncoded)) as PresenterTokenPayload;
+    payload = JSON.parse(
+      fromBase64Url(payloadEncoded)
+    ) as PresenterTokenPayload;
   } catch {
     return false;
   }

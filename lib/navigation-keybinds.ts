@@ -55,9 +55,7 @@ export function formatNavigationKeyLabel(rawKey: string): string {
   return key;
 }
 
-function sanitizeNavigationKeybinds(
-  value: unknown
-): NavigationKeybinds | null {
+function sanitizeNavigationKeybinds(value: unknown): NavigationKeybinds | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -69,11 +67,11 @@ function sanitizeNavigationKeybinds(
 
   const nextKey = normalizeNavigationKey(maybe.nextKey);
   const prevKey = normalizeNavigationKey(maybe.prevKey);
-  if (!nextKey || !prevKey || nextKey === prevKey) {
+  if (!(nextKey && prevKey) || nextKey === prevKey) {
     return null;
   }
 
-  if (!canUseAsNavigationKey(nextKey) || !canUseAsNavigationKey(prevKey)) {
+  if (!(canUseAsNavigationKey(nextKey) && canUseAsNavigationKey(prevKey))) {
     return null;
   }
 

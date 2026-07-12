@@ -4,13 +4,16 @@ const HEADING_STRIP_RE = /^#+\s*/;
 const HEADING_LINE_RE = /^#{1,4} /;
 
 export interface MarkdownSection {
-  id: string;
-  heading: string;
   content: string;
+  heading: string;
+  id: string;
 }
 
 export function getSectionId(heading: string, _index: number): string {
-  const slug = heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+  const slug = heading
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 40);
   return slug || "untitled";
 }
 
