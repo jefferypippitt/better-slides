@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createPresenterToken, verifyPresenterToken } from "@/lib/presenter-token";
+import {
+  createPresenterToken,
+  verifyPresenterToken,
+} from "@/lib/presenter-token";
 
 const DECK_ID = "deck-123";
 const OTHER_DECK_ID = "deck-456";
@@ -36,8 +39,12 @@ describe("presenter token", () => {
   });
 
   it("rejects a malformed token without throwing", () => {
-    expect(() => verifyPresenterToken("not-a-real-token", DECK_ID, "notes")).not.toThrow();
-    expect(verifyPresenterToken("not-a-real-token", DECK_ID, "notes")).toBe(false);
+    expect(() =>
+      verifyPresenterToken("not-a-real-token", DECK_ID, "notes")
+    ).not.toThrow();
+    expect(verifyPresenterToken("not-a-real-token", DECK_ID, "notes")).toBe(
+      false
+    );
   });
 
   it("rejects an empty token string without throwing", () => {
