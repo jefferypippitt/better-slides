@@ -1,11 +1,17 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import { type CornerRadius, isCornerRadius } from "./corner-radius";
 import { db } from "./db";
 import { deck as deckTable, deckWidget as deckWidgetTable } from "./db/schema";
+import { toSafeHttpUrl } from "./safe-url";
+import { SHAPE_TYPES, type ShapeType } from "./shapes";
+import { isHexColor } from "./text-color";
 
 export interface CanvasBox {
   componentName?: string;
+  /** Corner rounding for image boxes; unset means "none". */
+  cornerRadius?: CornerRadius;
   customQrUrl?: string;
   h: number;
   id: string;
@@ -25,8 +31,10 @@ export interface CanvasBox {
     | "url-qr";
   sectionId?: string;
   shapeColor?: string;
-  shapeType?: "rect" | "circle";
+  shapeType?: ShapeType;
   staticText?: string;
+  /** Hex color for text boxes; unset means the theme's text color. */
+  textColor?: string;
   textStyle?: "title" | "subtitle" | "body";
   twitterUrl?: string;
   w: number;
@@ -50,56 +58,53 @@ export interface DeckWidget {
   updatedAt: string;
 }
 
+const DECORATIVE_KINDS = new Set<CanvasBox["kind"]>([
+  "image",
+  "youtube",
+  "twitter",
+  "shape",
+  "text",
+  "page-number",
+  "timer",
+  "qr-code",
+  "url-qr",
+]);
+
+const TEXT_STYLES = new Set<CanvasBox["textStyle"]>([
+  undefined,
+  "title",
+  "subtitle",
+  "body",
+]);
+
+type ValidCanvasBoxCandidate = Partial<CanvasBox> &
+  Pick<CanvasBox, "id" | "x" | "y" | "w" | "h">;
+
+function isValidCanvasBoxCandidate(
+  candidate: Partial<CanvasBox>
+): candidate is ValidCanvasBoxCandidate {
+  const { kind } = candidate;
+  const isSectionLike =
+    !DECORATIVE_KINDS.has(kind) && kind !== "separator" && kind !== "component";
+  const isComponentLike = kind === "component";
+  return (
+    typeof candidate.id === "string" &&
+    !(isSectionLike && typeof candidate.sectionId !== "string") &&
+    !(isComponentLike && typeof candidate.componentName !== "string") &&
+    Number.isFinite(candidate.x) &&
+    Number.isFinite(candidate.y) &&
+    Number.isFinite(candidate.w) &&
+    Number.isFinite(candidate.h) &&
+    TEXT_STYLES.has(candidate.textStyle)
+  );
+}
+
 function normalizeCanvasBox(item: unknown): CanvasBox | null {
   if (typeof item !== "object" || item === null) {
     return null;
   }
   const candidate = item as Partial<CanvasBox>;
-  const kind =
-    candidate.kind === "section" ||
-    candidate.kind === "separator" ||
-    candidate.kind === "component" ||
-    candidate.kind === "image" ||
-    candidate.kind === "youtube" ||
-    candidate.kind === "twitter" ||
-    candidate.kind === "shape" ||
-    candidate.kind === "text" ||
-    candidate.kind === "page-number" ||
-    candidate.kind === "timer" ||
-    candidate.kind === "qr-code" ||
-    candidate.kind === "url-qr"
-      ? candidate.kind
-      : undefined;
-  const isDecorative =
-    kind === "image" ||
-    kind === "youtube" ||
-    kind === "twitter" ||
-    kind === "shape" ||
-    kind === "text" ||
-    kind === "page-number" ||
-    kind === "timer" ||
-    kind === "qr-code" ||
-    kind === "url-qr";
-  const isSectionLike =
-    !isDecorative && kind !== "separator" && kind !== "component";
-  const isComponentLike = kind === "component";
-  if (
-    typeof candidate.id !== "string" ||
-    (isSectionLike && typeof candidate.sectionId !== "string") ||
-    (isComponentLike && typeof candidate.componentName !== "string") ||
-    typeof candidate.x !== "number" ||
-    typeof candidate.y !== "number" ||
-    typeof candidate.w !== "number" ||
-    typeof candidate.h !== "number"
-  ) {
-    return null;
-  }
-  if (
-    candidate.textStyle !== undefined &&
-    candidate.textStyle !== "title" &&
-    candidate.textStyle !== "subtitle" &&
-    candidate.textStyle !== "body"
-  ) {
+  if (!isValidCanvasBoxCandidate(candidate)) {
     return null;
   }
   return {
@@ -107,34 +112,29 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
     kind: candidate.kind ?? "section",
     sectionId: candidate.sectionId,
     componentName: candidate.componentName,
-    imageUrl:
-      typeof candidate.imageUrl === "string" ? candidate.imageUrl : undefined,
-    youtubeUrl:
-      typeof candidate.youtubeUrl === "string"
-        ? candidate.youtubeUrl
-        : undefined,
-    twitterUrl:
-      typeof candidate.twitterUrl === "string"
-        ? candidate.twitterUrl
-        : undefined,
-    shapeColor:
-      typeof candidate.shapeColor === "string"
-        ? candidate.shapeColor
-        : undefined,
+    imageUrl: toSafeHttpUrl(candidate.imageUrl),
+    cornerRadius: isCornerRadius(candidate.cornerRadius)
+      ? candidate.cornerRadius
+      : undefined,
+    textColor: isHexColor(candidate.textColor)
+      ? candidate.textColor
+      : undefined,
+    youtubeUrl: toSafeHttpUrl(candidate.youtubeUrl),
+    twitterUrl: toSafeHttpUrl(candidate.twitterUrl),
+    // Hex only: this value is written into an inline style during SSR, where
+    // React does not stop a value like "red;position:fixed" adding properties.
+    shapeColor: isHexColor(candidate.shapeColor)
+      ? candidate.shapeColor
+      : undefined,
     shapeType:
-      candidate.shapeType === "circle"
-        ? "circle"
-        : candidate.shapeType === "rect"
-          ? "rect"
-          : undefined,
+      candidate.shapeType && SHAPE_TYPES.includes(candidate.shapeType)
+        ? candidate.shapeType
+        : undefined,
     staticText:
       typeof candidate.staticText === "string"
         ? candidate.staticText
         : undefined,
-    customQrUrl:
-      typeof candidate.customQrUrl === "string"
-        ? candidate.customQrUrl
-        : undefined,
+    customQrUrl: toSafeHttpUrl(candidate.customQrUrl),
     x: Math.max(0, Math.min(100, candidate.x)),
     y: Math.max(0, Math.min(100, candidate.y)),
     w: Math.max(10, Math.min(100, candidate.w)),
@@ -143,7 +143,7 @@ function normalizeCanvasBox(item: unknown): CanvasBox | null {
   };
 }
 
-function normalizeCanvasLayout(layout: unknown): CanvasBox[] {
+export function normalizeCanvasLayout(layout: unknown): CanvasBox[] {
   if (!Array.isArray(layout)) {
     return [];
   }
