@@ -1,6 +1,6 @@
 "use client";
 
-import { DotsThreeVertical, Plus, Trash } from "@phosphor-icons/react";
+import { DotsThreeVertical, Plus } from "@phosphor-icons/react";
 import { DeckSidebar } from "@/components/editor/deck-sidebar";
 import { LayoutCanvas } from "@/components/editor/layout-canvas";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,6 @@ export function WriteLayoutPane({
                           className="text-destructive focus:text-destructive"
                           onSelect={() => onDeleteSlide(i)}
                         >
-                          <Trash size={12} />
                           Delete slide
                         </DropdownMenuItem>
                       </>

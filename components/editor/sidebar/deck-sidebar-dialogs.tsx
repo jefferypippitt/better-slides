@@ -19,9 +19,30 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { STATIC_TEXT_MAX_LENGTH } from "@/lib/deck-limits";
 import type { Deck } from "@/lib/decks";
+import { extractTweetId, extractYoutubeId } from "@/lib/embeds";
+import { toSafeHttpUrl } from "@/lib/safe-url";
+import type { ShapeType } from "@/lib/shapes";
 
 export type KeybindDialogTarget = "nextKey" | "prevKey";
+
+function InvalidUrlHint({
+  children,
+  show,
+}: {
+  children: ReactNode;
+  show: boolean;
+}) {
+  if (!show) {
+    return null;
+  }
+  return (
+    <p className="text-destructive text-xs" role="alert">
+      {children}
+    </p>
+  );
+}
 
 function EmojiCategoryHeader({
   category,
@@ -102,7 +123,7 @@ interface DeckSidebarDialogsProps {
     h: number;
     imageUrl?: string;
     shapeColor?: string;
-    shapeType?: "circle" | "rect";
+    shapeType?: ShapeType;
     staticText?: string;
     textStyle?: "body" | "subtitle" | "title";
     twitterUrl?: string;
@@ -126,7 +147,7 @@ interface DeckSidebarDialogsProps {
   onSeparatorDialogOpenChange: (open: boolean) => void;
   onShapeColorChange: (value: string) => void;
   onShapeDialogOpenChange: (open: boolean) => void;
-  onShapeTypeChange: (value: "circle" | "rect") => void;
+  onShapeTypeChange: (value: ShapeType) => void;
   onTextDialogOpenChange: (open: boolean) => void;
   onTextValueChange: (value: string) => void;
   onTwitterDialogOpenChange: (open: boolean) => void;
@@ -142,7 +163,7 @@ interface DeckSidebarDialogsProps {
   separatorDialogOpen: boolean;
   shapeColor: string;
   shapeDialogOpen: boolean;
-  shapeType: "circle" | "rect";
+  shapeType: ShapeType;
   textDialogOpen: boolean;
   textValue: string;
   twitterDialogOpen: boolean;
@@ -215,6 +236,17 @@ export function DeckSidebarDialogs({
   emojiDialogOpen,
   deleteAllDecksDialogOpen,
 }: DeckSidebarDialogsProps) {
+  // Mirror the server-side checks in lib/decks.ts so users can't add an
+  // element that would be dropped on save.
+  const imageUrlValid = toSafeHttpUrl(imageUrlValue) !== undefined;
+  const youtubeUrlValid =
+    toSafeHttpUrl(youtubeUrlValue) !== undefined &&
+    extractYoutubeId(youtubeUrlValue) !== null;
+  const twitterUrlValid =
+    toSafeHttpUrl(twitterUrlValue) !== undefined &&
+    extractTweetId(twitterUrlValue) !== null;
+  const urlQrValid = toSafeHttpUrl(urlQrValue) !== undefined;
+
   return (
     <>
       <AlertDialog
@@ -335,7 +367,7 @@ export function DeckSidebarDialogs({
             aria-label="Image URL"
             onChange={(e) => onImageUrlChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && imageUrlValue.trim()) {
+              if (e.key === "Enter" && imageUrlValid) {
                 onAddElement({
                   kind: "image",
                   imageUrl: imageUrlValue.trim(),
@@ -351,10 +383,15 @@ export function DeckSidebarDialogs({
             type="url"
             value={imageUrlValue}
           />
+          <InvalidUrlHint
+            show={Boolean(imageUrlValue.trim()) && !imageUrlValid}
+          >
+            Enter a full image URL starting with https://
+          </InvalidUrlHint>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!imageUrlValue.trim()}
+              disabled={!imageUrlValid}
               onClick={() => {
                 onAddElement({
                   kind: "image",
@@ -388,7 +425,7 @@ export function DeckSidebarDialogs({
             aria-label="YouTube URL"
             onChange={(e) => onYoutubeUrlChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && youtubeUrlValue.trim()) {
+              if (e.key === "Enter" && youtubeUrlValid) {
                 onAddElement({
                   kind: "youtube",
                   youtubeUrl: youtubeUrlValue.trim(),
@@ -404,10 +441,16 @@ export function DeckSidebarDialogs({
             type="url"
             value={youtubeUrlValue}
           />
+          <InvalidUrlHint
+            show={Boolean(youtubeUrlValue.trim()) && !youtubeUrlValid}
+          >
+            Enter a YouTube video link, like
+            https://www.youtube.com/watch?v=dQw4w9WgXcQ
+          </InvalidUrlHint>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!youtubeUrlValue.trim()}
+              disabled={!youtubeUrlValid}
               onClick={() => {
                 onAddElement({
                   kind: "youtube",
@@ -441,7 +484,7 @@ export function DeckSidebarDialogs({
             aria-label="X / Twitter post URL"
             onChange={(e) => onTwitterUrlChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && twitterUrlValue.trim()) {
+              if (e.key === "Enter" && twitterUrlValid) {
                 onAddElement({
                   kind: "twitter",
                   twitterUrl: twitterUrlValue.trim(),
@@ -457,10 +500,15 @@ export function DeckSidebarDialogs({
             type="url"
             value={twitterUrlValue}
           />
+          <InvalidUrlHint
+            show={Boolean(twitterUrlValue.trim()) && !twitterUrlValid}
+          >
+            Enter a post link, like https://x.com/user/status/123456
+          </InvalidUrlHint>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!twitterUrlValue.trim()}
+              disabled={!twitterUrlValid}
               onClick={() => {
                 onAddElement({
                   kind: "twitter",
@@ -489,6 +537,7 @@ export function DeckSidebarDialogs({
           </AlertDialogHeader>
           <Input
             aria-label="Text content"
+            maxLength={STATIC_TEXT_MAX_LENGTH}
             onChange={(e) => onTextValueChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && textValue.trim()) {
@@ -612,6 +661,22 @@ export function DeckSidebarDialogs({
                 Circle
               </Button>
             </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => onShapeTypeChange("triangle")}
+                variant={shapeType === "triangle" ? "secondary" : "outline"}
+              >
+                Triangle
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => onShapeTypeChange("diamond")}
+                variant={shapeType === "diamond" ? "secondary" : "outline"}
+              >
+                Diamond
+              </Button>
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Color</span>
               <input
@@ -661,7 +726,7 @@ export function DeckSidebarDialogs({
           <Input
             onChange={(e) => onUrlQrValueChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && urlQrValue.trim()) {
+              if (e.key === "Enter" && urlQrValid) {
                 onAddElement({
                   kind: "url-qr",
                   customQrUrl: urlQrValue.trim(),
@@ -677,10 +742,13 @@ export function DeckSidebarDialogs({
             type="url"
             value={urlQrValue}
           />
+          <InvalidUrlHint show={Boolean(urlQrValue.trim()) && !urlQrValid}>
+            Enter a full URL starting with https://
+          </InvalidUrlHint>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!urlQrValue.trim()}
+              disabled={!urlQrValid}
               onClick={() => {
                 onAddElement({
                   kind: "url-qr",

@@ -40,6 +40,7 @@ import {
   normalizeNavigationKey,
   saveNavigationKeybinds,
 } from "@/lib/navigation-keybinds";
+import type { ShapeType } from "@/lib/shapes";
 
 interface DeckSidebarProps {
   activeDeckId: string | null;
@@ -127,7 +128,7 @@ export function DeckSidebar({
   const [textValue, setTextValue] = useState("");
   const [emojiDialogOpen, setEmojiDialogOpen] = useState(false);
   const [shapeDialogOpen, setShapeDialogOpen] = useState(false);
-  const [shapeType, setShapeType] = useState<"rect" | "circle">("rect");
+  const [shapeType, setShapeType] = useState<ShapeType>("rect");
   const [shapeColor, setShapeColor] = useState("#84cc16");
   const [urlQrDialogOpen, setUrlQrDialogOpen] = useState(false);
   const [urlQrValue, setUrlQrValue] = useState("");

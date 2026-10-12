@@ -6,38 +6,19 @@ import { ClientMdxRenderer } from "@/components/mdx/client-mdx-renderer";
 import { ClientWidgetSlot } from "@/components/mdx/client-widget-slot";
 import { TimerBox } from "@/components/present/timer-box";
 import { Slide } from "@/components/slides/primitives";
+import {
+  CORNER_RADIUS_CLASSES,
+  DEFAULT_CORNER_RADIUS,
+} from "@/lib/corner-radius";
+import { extractTweetId, toYoutubeEmbedUrl } from "@/lib/embeds";
 import type { MarkdownSection } from "@/lib/sections";
 import { parseMarkdownSections } from "@/lib/sections";
+import { SHAPE_CLIP_PATHS } from "@/lib/shapes";
 import { getAuthorizedDeckForPresent } from "@/server/present";
 
 export const dynamic = "force-dynamic";
 
 const HEADING_PREFIX_RE = /^#{1,6}\s+/;
-const YOUTUBE_WATCH_RE = /[?&]v=([^&#]+)/;
-const YOUTUBE_SHORT_RE = /youtu\.be\/([^?&#]+)/;
-const YOUTUBE_EMBED_RE = /youtube\.com\/embed\/([^?&#]+)/;
-const TWITTER_STATUS_RE = /\/status\/(\d+)/;
-
-function extractTweetId(url: string): string | null {
-  const match = TWITTER_STATUS_RE.exec(url);
-  return match ? match[1] : null;
-}
-
-function toYoutubeEmbedUrl(url: string): string | null {
-  const watchMatch = YOUTUBE_WATCH_RE.exec(url);
-  if (watchMatch) {
-    return `https://www.youtube.com/embed/${watchMatch[1]}`;
-  }
-  const shortMatch = YOUTUBE_SHORT_RE.exec(url);
-  if (shortMatch) {
-    return `https://www.youtube.com/embed/${shortMatch[1]}`;
-  }
-  const embedMatch = YOUTUBE_EMBED_RE.exec(url);
-  if (embedMatch) {
-    return `https://www.youtube.com/embed/${embedMatch[1]}`;
-  }
-  return null;
-}
 const PRESENT_FRAME_CLASSES =
   "slide-view @container absolute inset-4 overflow-hidden rounded-2xl bg-background";
 
@@ -160,7 +141,7 @@ function renderCanvasBox({
     }
     return (
       <div
-        className="absolute overflow-hidden"
+        className={`absolute overflow-hidden ${CORNER_RADIUS_CLASSES[box.cornerRadius ?? DEFAULT_CORNER_RADIUS]}`}
         key={box.id}
         style={{
           height: `${box.h}%`,
@@ -243,7 +224,12 @@ function renderCanvasBox({
       >
         <div
           className={`h-full w-full ${box.shapeType === "circle" ? "rounded-full" : "rounded-sm"}`}
-          style={{ backgroundColor: box.shapeColor ?? "#818cf8" }}
+          style={{
+            backgroundColor: box.shapeColor ?? "#818cf8",
+            clipPath: box.shapeType
+              ? SHAPE_CLIP_PATHS[box.shapeType]
+              : undefined,
+          }}
         />
       </div>
     );
@@ -265,7 +251,10 @@ function renderCanvasBox({
           width: `${box.w}%`,
         }}
       >
-        <p className={`wrap-break-word ${getTextStyleClasses(textStyle)}`}>
+        <p
+          className={`wrap-break-word ${getTextStyleClasses(textStyle)}`}
+          style={{ color: box.textColor }}
+        >
           {box.staticText}
         </p>
       </div>
@@ -400,7 +389,7 @@ function SectionBoxContent({
       </p>
       {bodyMdx && (
         <ClientMdxRenderer
-          className="text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_li]:mb-0.5 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
+          className="text-[clamp(0.85rem,1.5cqw,1.2rem)] text-muted-foreground leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_em]:text-muted-foreground [&_li]:mb-0.5 [&_ol]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:text-muted-foreground"
           source={bodyMdx}
           uploadedWidgets={uploadedWidgets}
         />

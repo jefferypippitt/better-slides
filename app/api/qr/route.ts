@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
+import { MAX_URL_LENGTH, toSafeHttpUrl } from "@/lib/safe-url";
 
 const QR_WIDTH = 320;
-const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const rawUrl = request.nextUrl.searchParams.get("url")?.trim();
@@ -14,26 +14,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
-  }
-
-  if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
+  const url = toSafeHttpUrl(rawUrl);
+  if (!url) {
     return NextResponse.json(
-      { error: "URL must use http or https" },
+      {
+        error: `URL must use http or https and be at most ${MAX_URL_LENGTH} characters`,
+      },
       { status: 400 }
     );
   }
 
-  const svg = await QRCode.toString(rawUrl, {
-    errorCorrectionLevel: "M",
-    margin: 1,
-    type: "svg",
-    width: QR_WIDTH,
-  });
+  let svg: string;
+  try {
+    svg = await QRCode.toString(url, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      type: "svg",
+      width: QR_WIDTH,
+    });
+  } catch {
+    // The URL is too much data to fit in a QR code at this error-correction level.
+    return NextResponse.json(
+      { error: "URL is too long to encode as a QR code" },
+      { status: 400 }
+    );
+  }
 
   return new NextResponse(svg, {
     headers: {

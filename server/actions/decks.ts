@@ -4,6 +4,11 @@ import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth";
 import {
+  MAX_BOXES_PER_SLIDE,
+  MAX_SLIDES_PER_DECK,
+  STATIC_TEXT_MAX_LENGTH,
+} from "@/lib/deck-limits";
+import {
   type Deck,
   type DeckWidget,
   deleteDeck,
@@ -38,13 +43,36 @@ function validateDeckInput(data: {
     throw new Error("Deck content is too large.");
   }
   if (data.slides) {
-    for (const slide of data.slides) {
+    validateSlides(data.slides);
+  }
+}
+
+function validateSlides(slides: SlideLayout[]) {
+  if (slides.length > MAX_SLIDES_PER_DECK) {
+    throw new Error(`A deck can have at most ${MAX_SLIDES_PER_DECK} slides.`);
+  }
+  for (const slide of slides) {
+    if (
+      slide.speakerNotes !== undefined &&
+      slide.speakerNotes.length > NOTES_MAX_LENGTH
+    ) {
+      throw new Error(
+        `Speaker notes must be ${NOTES_MAX_LENGTH} characters or fewer.`
+      );
+    }
+    const boxes = Array.isArray(slide.canvasLayout) ? slide.canvasLayout : [];
+    if (boxes.length > MAX_BOXES_PER_SLIDE) {
+      throw new Error(
+        `A slide can have at most ${MAX_BOXES_PER_SLIDE} elements.`
+      );
+    }
+    for (const box of boxes) {
       if (
-        slide.speakerNotes !== undefined &&
-        slide.speakerNotes.length > NOTES_MAX_LENGTH
+        typeof box.staticText === "string" &&
+        box.staticText.length > STATIC_TEXT_MAX_LENGTH
       ) {
         throw new Error(
-          `Speaker notes must be ${NOTES_MAX_LENGTH} characters or fewer.`
+          `Text boxes must be ${STATIC_TEXT_MAX_LENGTH} characters or fewer.`
         );
       }
     }

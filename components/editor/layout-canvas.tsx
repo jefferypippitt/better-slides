@@ -8,13 +8,25 @@ import { serialize } from "next-mdx-remote/serialize";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  TweetPreview,
+  YoutubePreview,
+} from "@/components/editor/embed-previews";
+import { TextColorControl } from "@/components/editor/text-color-control";
+import {
   getMdxComponentByName,
   resolveMdxComponents,
   type UploadedDeckWidget,
 } from "@/components/mdx/component-registry";
 import { Badge } from "@/components/ui/badge";
+import {
+  CORNER_RADIUS_CLASSES,
+  CORNER_RADIUS_OPTIONS,
+  type CornerRadius,
+  DEFAULT_CORNER_RADIUS,
+} from "@/lib/corner-radius";
 import type { CanvasBox as DeckCanvasBox } from "@/lib/decks";
 import { parseMarkdownSections } from "@/lib/sections";
+import { SHAPE_CLIP_PATHS } from "@/lib/shapes";
 
 export type { CanvasBox } from "@/lib/decks";
 
@@ -78,7 +90,9 @@ function areLayoutsEqual(a: DeckCanvasBox[], b: DeckCanvasBox[]): boolean {
       boxA.y !== boxB.y ||
       boxA.w !== boxB.w ||
       boxA.h !== boxB.h ||
-      boxA.textStyle !== boxB.textStyle
+      boxA.textStyle !== boxB.textStyle ||
+      boxA.cornerRadius !== boxB.cornerRadius ||
+      boxA.textColor !== boxB.textColor
     ) {
       return false;
     }
@@ -122,6 +136,12 @@ export function LayoutCanvas({
   const historyRef = useRef<DeckCanvasBox[][]>([]);
   const historyIndexRef = useRef(0);
   const snapEnabled = gridViewMode !== "off";
+  const selectedImageBox = boxes.find(
+    (box) => box.id === selectedBoxId && box.kind === "image"
+  );
+  const selectedTextBox = boxes.find(
+    (box) => box.id === selectedBoxId && box.kind === "text"
+  );
 
   const notesUrl = useMemo(() => {
     if (!notesPath) {
@@ -450,6 +470,33 @@ export function LayoutCanvas({
       return { ...box, textStyle: nextTextStyle(currentStyle) };
     });
     applyNextLayout(next);
+  }
+
+  function setBoxCornerRadius(boxId: string, cornerRadius: CornerRadius) {
+    const next = boxesRef.current.map((box) =>
+      box.id === boxId ? { ...box, cornerRadius } : box
+    );
+    applyNextLayout(next);
+  }
+
+  function setBoxTextColor(
+    boxId: string,
+    textColor: string | undefined,
+    options?: { trackHistory?: boolean }
+  ) {
+    const next = boxesRef.current.map((box) =>
+      box.id === boxId ? { ...box, textColor } : box
+    );
+    applyNextLayout(next, options);
+  }
+
+  /** Records one undo step after live edits made without history (e.g. dragging in the color picker). */
+  function commitPendingHistory() {
+    const lastSnapshot = historyRef.current[historyIndexRef.current];
+    if (lastSnapshot && areLayoutsEqual(lastSnapshot, boxesRef.current)) {
+      return;
+    }
+    pushHistory(boxesRef.current);
   }
 
   function getCornerResizeClass(edge: ResizeEdge): string {
@@ -843,6 +890,50 @@ export function LayoutCanvas({
           >
             Send backward
           </button>
+          {selectedImageBox && (
+            <>
+              <div className="mx-1 h-3.5 w-px bg-border" />
+              <span className="font-medium">Corners</span>
+              <div className="flex items-center gap-1">
+                {CORNER_RADIUS_OPTIONS.map((option) => {
+                  const isActive =
+                    (selectedImageBox.cornerRadius ?? DEFAULT_CORNER_RADIUS) ===
+                    option.value;
+                  return (
+                    <button
+                      aria-pressed={isActive}
+                      className={`rounded px-1.5 py-0.5 ${
+                        isActive
+                          ? "bg-muted text-foreground"
+                          : "hover:bg-muted/80"
+                      }`}
+                      key={option.value}
+                      onClick={() =>
+                        setBoxCornerRadius(selectedImageBox.id, option.value)
+                      }
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {selectedTextBox && (
+            <>
+              <div className="mx-1 h-3.5 w-px bg-border" />
+              <TextColorControl
+                onCommit={commitPendingHistory}
+                onSelect={(color, { live }) =>
+                  setBoxTextColor(selectedTextBox.id, color, {
+                    trackHistory: !live,
+                  })
+                }
+                value={selectedTextBox.textColor}
+              />
+            </>
+          )}
           <span className="ml-auto opacity-50">
             {boxes.length} node{boxes.length !== 1 ? "s" : ""}
           </span>
@@ -1058,19 +1149,19 @@ export function LayoutCanvas({
                       )
                     : null;
                 let bodyContentNode: ReactNode = (
-                  <p className="wrap-break-word text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug">
+                  <p className="wrap-break-word text-[clamp(0.85rem,1.5cqw,1.2rem)] text-muted-foreground leading-snug">
                     {bodyContent.paragraphs[0]}
                   </p>
                 );
                 if (serializedBody) {
                   bodyContentNode = (
-                    <div className="text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_li]:mb-0.5 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5">
+                    <div className="text-[clamp(0.85rem,1.5cqw,1.2rem)] text-muted-foreground leading-snug [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[0.9em] [&_em]:text-muted-foreground [&_li]:mb-0.5 [&_ol]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:text-muted-foreground">
                       <MDXRemote {...serializedBody} components={components} />
                     </div>
                   );
                 } else if (bodyContent.listItems.length > 0) {
                   bodyContentNode = (
-                    <ul className="list-disc space-y-1 pl-5 text-[clamp(0.85rem,1.5cqw,1.2rem)] leading-snug">
+                    <ul className="list-disc space-y-1 pl-5 text-[clamp(0.85rem,1.5cqw,1.2rem)] text-muted-foreground leading-snug">
                       {bodyContent.listItems.map((item) => (
                         <li className="wrap-break-word" key={item}>
                           {item}
@@ -1161,7 +1252,9 @@ export function LayoutCanvas({
                         </div>
                       )}
                       {isImage && (
-                        <div className="h-full w-full overflow-hidden">
+                        <div
+                          className={`h-full w-full overflow-hidden ${CORNER_RADIUS_CLASSES[box.cornerRadius ?? DEFAULT_CORNER_RADIUS]}`}
+                        >
                           {box.imageUrl ? (
                             // biome-ignore lint/performance/noImgElement: user-provided external URLs require img tag
                             // biome-ignore lint/correctness/useImageSize: dimensions are controlled via CSS for user-provided URLs
@@ -1178,16 +1271,9 @@ export function LayoutCanvas({
                         </div>
                       )}
                       {isYoutube && (
-                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded bg-black">
+                        <div className="h-full w-full overflow-hidden rounded">
                           {box.youtubeUrl ? (
-                            <div className="flex h-full w-full flex-col items-center justify-center gap-1">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
-                                <div className="ml-0.5 h-0 w-0 border-y-[6px] border-y-transparent border-l-10 border-l-white" />
-                              </div>
-                              <span className="text-[9px] text-white/60">
-                                YouTube
-                              </span>
-                            </div>
+                            <YoutubePreview url={box.youtubeUrl} />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
                               No URL set
@@ -1196,23 +1282,9 @@ export function LayoutCanvas({
                         </div>
                       )}
                       {isTwitter && (
-                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded bg-black">
+                        <div className="h-full w-full overflow-hidden rounded">
                           {box.twitterUrl ? (
-                            <div className="flex h-full w-full flex-col items-center justify-center gap-1">
-                              <svg
-                                aria-hidden="true"
-                                fill="white"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                width="20"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                              </svg>
-                              <span className="text-[9px] text-white/60">
-                                X / Twitter
-                              </span>
-                            </div>
+                            <TweetPreview url={box.twitterUrl} />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center rounded border border-muted-foreground/40 border-dashed text-[10px] text-muted-foreground">
                               No URL set
@@ -1225,6 +1297,9 @@ export function LayoutCanvas({
                           className={`h-full w-full ${box.shapeType === "circle" ? "rounded-full" : "rounded-sm"}`}
                           style={{
                             backgroundColor: box.shapeColor ?? "#818cf8",
+                            clipPath: box.shapeType
+                              ? SHAPE_CLIP_PATHS[box.shapeType]
+                              : undefined,
                           }}
                         />
                       )}
@@ -1232,6 +1307,7 @@ export function LayoutCanvas({
                         <div className="h-full w-full overflow-hidden">
                           <p
                             className={`wrap-break-word ${getTextStyleClasses(box.textStyle ?? "subtitle")}`}
+                            style={{ color: box.textColor }}
                           >
                             {box.staticText || "Text box"}
                           </p>

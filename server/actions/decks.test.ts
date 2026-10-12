@@ -22,6 +22,12 @@ vi.mock("@/lib/decks", () => ({
   deleteDeck: mockDeleteDeck,
 }));
 
+import {
+  MAX_BOXES_PER_SLIDE,
+  MAX_SLIDES_PER_DECK,
+  STATIC_TEXT_MAX_LENGTH,
+} from "@/lib/deck-limits";
+import type { SlideLayout } from "@/lib/decks";
 import { deleteDeckAction, updateDeckAction } from "@/server/actions/decks";
 
 const OWNER_ID = "user-owner";
@@ -62,6 +68,49 @@ describe("updateDeckAction", () => {
     expect(mockUpdateDeck).toHaveBeenCalledWith(DECK_ID, OWNER_ID, {
       title: "New title",
     });
+  });
+});
+
+describe("updateDeckAction slide limits", () => {
+  const box = { id: "box", x: 0, y: 0, w: 10, h: 10 };
+  const slideWith = (canvasLayout: SlideLayout["canvasLayout"]) => ({
+    id: "slide",
+    canvasLayout,
+  });
+
+  beforeEach(() => {
+    mockGetSession.mockResolvedValue({ user: { id: OWNER_ID } });
+    mockGetDeck.mockResolvedValue({ id: DECK_ID, userId: OWNER_ID });
+  });
+
+  it("rejects more slides than the per-deck limit", async () => {
+    const slides = Array.from({ length: MAX_SLIDES_PER_DECK + 1 }, () =>
+      slideWith([])
+    );
+    await expect(updateDeckAction(DECK_ID, { slides })).rejects.toThrow(
+      "slides"
+    );
+    expect(mockUpdateDeck).not.toHaveBeenCalled();
+  });
+
+  it("rejects more elements than the per-slide limit", async () => {
+    const boxes = Array.from({ length: MAX_BOXES_PER_SLIDE + 1 }, () => box);
+    await expect(
+      updateDeckAction(DECK_ID, { slides: [slideWith(boxes)] })
+    ).rejects.toThrow("elements");
+    expect(mockUpdateDeck).not.toHaveBeenCalled();
+  });
+
+  it("rejects text boxes over the length limit", async () => {
+    const longText = {
+      ...box,
+      kind: "text" as const,
+      staticText: "a".repeat(STATIC_TEXT_MAX_LENGTH + 1),
+    };
+    await expect(
+      updateDeckAction(DECK_ID, { slides: [slideWith([longText])] })
+    ).rejects.toThrow("Text boxes");
+    expect(mockUpdateDeck).not.toHaveBeenCalled();
   });
 });
 
